@@ -29,8 +29,7 @@ pip install -r requirements.txt
 ```
 
 ### **3️⃣ Set Up Your Chat Data**
-- Place your **ChatGPT conversation exports** in the `conversations.json` file.
-- Place **images/files** inside `static/uploads/` (if applicable).
+The easiest way to not have to do a lot of customziation is to put these files in the same directory you expanded your export into. You will need to modify the absolute file path locations in your app.py and import_json.py.
 
 ### **4️⃣ Initialize the Database**
 ```sh
