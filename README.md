@@ -112,16 +112,3 @@ If you like this project, **star the repo ⭐** and consider contributing!
 - **DataTables.js** – Dynamic Tables
 - **Highlight.js** – Code Formatting  
 ```
-
----
-
-## **🔥 Next Steps**
-1. **Save this as `README.md`** in your repo.
-2. **Replace `YOUR_GITHUB_USERNAME`** with your actual GitHub username.
-3. **Push your repo to GitHub**:
-   ```sh
-   git add README.md
-   git commit -m "Added README"
-   git push origin main
-   ```
-4. **Test the install steps** to ensure clarity.
