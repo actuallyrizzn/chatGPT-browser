@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversations</title>
+    
+    <!-- Load DataTables & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        table {
+            width: 90%;
+            margin: auto;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Conversations</h1>
+    <table id="conversations-table" class="display">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        $(document).ready(function() {
+            console.log("Initializing DataTables...");
+
+            $('#conversations-table').DataTable({
+                "processing": true,
+                "serverSide": true,
+                "ajax": {
+                    "url": "/api/conversations",
+                    "type": "GET",
+                    "dataSrc": "data"
+                },
+                "columns": [
+                    { "data": "id", "render": function(data) { return `<a href='/messages/${data}'>${data}</a>`; } },
+                    { "data": "title", "defaultContent": "No Title" },
+                    { "data": "create_time", "defaultContent": "N/A" }
+                ],
+                "pageLength": 50,
+                "order": [[2, "desc"]],  // Sort by Created At (DESC)
+                "initComplete": function(settings, json) {
+                    console.log("DataTables initialized with", json.data.length, "records");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
