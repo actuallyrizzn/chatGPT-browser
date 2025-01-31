@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    
+    <!-- Load DataTables & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    
+    <!-- Syntax Highlighting for Code Blocks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        table {
+            width: 90%;
+            margin: auto;
+            background: white;
+        }
+        pre {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 5px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Messages for Conversation: {{ conversation_id }}</h1>
+    <a href="/">Back to Conversations</a>
+    
+    <table id="messages-table" class="display">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Author</th>
+                <th>Content</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for msg in messages %}
+            <tr>
+                <td>{{ msg["id"] }}</td>
+                <td>{{ msg["author_role"] or "Unknown" }}</td>
+                <td>
+                    {% if msg["content"] | is_json %}
+                        {% set content_data = msg["content"] | parse_json %}
+                        
+                        {% if content_data.get("content_type") == "image_asset_pointer" %}
+                            {% set image_filename = content_data["asset_pointer"] | resolve_file %}
+                            {% if image_filename %}
+                                <img src="{{ url_for('serve_file', filename=image_filename) }}" alt="Embedded Image" />
+                            {% else %}
+                                <p>[Image Not Found]</p>
+                            {% endif %}
+
+                        {% elif content_data.get("type") == "code/html" %}
+                            <pre><code class="html">{{ content_data["content"] }}</code></pre>
+
+                        {% elif content_data.get("status") == "SUCCESS" and "jawbone" in content_data %}
+                            <strong>Task Automation:</strong>
+                            <table border="1">
+                                <tr><td><strong>Title:</strong></td><td>{{ content_data["jawbone"].get("title", "Unknown") }}</td></tr>
+                                <tr><td><strong>Prompt:</strong></td><td>{{ content_data["jawbone"].get("prompt", "No prompt available") }}</td></tr>
+                                <tr><td><strong>Schedule:</strong></td><td>{{ content_data["jawbone"].get("schedule", "No schedule set") }}</td></tr>
+                                <tr><td><strong>Timezone:</strong></td><td>{{ content_data["jawbone"].get("default_timezone", "Unknown") }}</td></tr>
+                            </table>
+
+                        {% elif content_data.get("textdoc_id") %}
+                            <a href="/document/{{ content_data['textdoc_id'] }}">📄 View Document History</a>
+
+                        {% else %}
+                            <pre>{{ content_data }}</pre>
+                        {% endif %}
+                    {% else %}
+                        {{ msg["content"] }}
+                    {% endif %}
+                </td>
+                <td>{{ msg["create_time"] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        $(document).ready(function() {
+            $('#messages-table').DataTable({
+                "order": [[3, "asc"]]  // Sort by Created At (Oldest to Newest)
+            });
+
+            hljs.highlightAll();  // Apply syntax highlighting
+        });
+    </script>
+</body>
+</html>
