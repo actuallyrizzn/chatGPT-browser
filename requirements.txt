@@ -1,0 +1,6 @@
+flask
+flask-cors
+sqlite-utils
+jinja2
+glob2
+highlight.js
