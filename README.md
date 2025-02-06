@@ -96,7 +96,7 @@ MIT License – Feel free to use, modify, and distribute.
 - **🔄 Syncing with Live Chat Data**
 - **📊 Conversation Analytics & Trends**
 
-💡 **Ideas? Issues?** Submit a [GitHub Issue](https://github.com/YOUR_GITHUB_USERNAME/athena-chat-explorer/issues).  
+💡 **Ideas? Issues?** Submit a [GitHub Issue](https://github.com/actuallyrizzn/chatGPT-browser/issues).  
 
 ---
 
