@@ -18,8 +18,8 @@ Built with **Flask + SQLite**, it allows users to efficiently **paginate, search
 
 ### **1️⃣ Clone the Repo**
 ```sh
-git clone https://github.com/YOUR_GITHUB_USERNAME/athena-chat-explorer.git
-cd athena-chat-explorer
+git clone https://github.com/actuallyrizzn/chatGPT-browser
+cd chatGPT-browser
 ```
 
 ### **2️⃣ Install Dependencies**
