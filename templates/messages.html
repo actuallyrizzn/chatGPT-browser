@@ -1,115 +1,343 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Messages</title>
-    
-    <!-- Load DataTables & jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    
-    <!-- Syntax Highlighting for Code Blocks -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+{% extends "base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            text-align: center;
-        }
-        table {
-            width: 90%;
-            margin: auto;
-            background: white;
-        }
-        pre {
-            background: #272822;
-            color: #f8f8f2;
-            padding: 10px;
-            overflow-x: auto;
-            border-radius: 5px;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Messages for Conversation: {{ conversation_id }}</h1>
-    <a href="/">Back to Conversations</a>
-    
-    <table id="messages-table" class="display">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Author</th>
-                <th>Content</th>
-                <th>Created At</th>
-            </tr>
-        </thead>
-        <tbody>
+{% block title %}{{ conversation.title or "Untitled Conversation" }} - ChatGPT Browser{% endblock %}
+
+{% block content %}
+<div class="nice-mode">
+    <div class="container">
+        <div class="chat-header">
+            <a href="/" class="back-button">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1>{{ conversation.title or "Untitled Conversation" }}</h1>
+        </div>
+        
+        <div class="chat-container">
             {% for msg in messages %}
-            <tr>
-                <td>{{ msg["id"] }}</td>
-                <td>{{ msg["author_role"] or "Unknown" }}</td>
-                <td>
-                    {% if msg["content"] | is_json %}
-                        {% set content_data = msg["content"] | parse_json %}
-                        
-                        {% if content_data.get("content_type") == "image_asset_pointer" %}
-                            {% set image_filename = content_data["asset_pointer"] | resolve_file %}
-                            {% if image_filename %}
-                                <img src="{{ url_for('serve_file', filename=image_filename) }}" alt="Embedded Image" />
-                            {% else %}
-                                <p>[Image Not Found]</p>
+            <div class="message-wrapper {% if msg.author_role == 'user' %}message-user{% else %}message-assistant{% endif %}">
+                <div class="message">
+                    <div class="message-header">
+                        <span class="message-role">{{ msg.author_role | title }}</span>
+                        <span class="message-time" title="{{ msg.create_time }}">
+                            {% if msg.create_time %}
+                                {% set time_parts = msg.create_time.split() %}
+                                {% if time_parts|length > 1 %}
+                                    {{ time_parts[1][:5] }}
+                                {% else %}
+                                    {{ msg.create_time }}
+                                {% endif %}
                             {% endif %}
-
-                        {% elif content_data.get("type") == "code/html" %}
-                            <pre><code class="html">{{ content_data["content"] }}</code></pre>
-
-                        {% elif content_data.get("status") == "SUCCESS" and "jawbone" in content_data %}
-                            <strong>Task Automation:</strong>
-                            <table border="1">
-                                <tr><td><strong>Title:</strong></td><td>{{ content_data["jawbone"].get("title", "Unknown") }}</td></tr>
-                                <tr><td><strong>Prompt:</strong></td><td>{{ content_data["jawbone"].get("prompt", "No prompt available") }}</td></tr>
-                                <tr><td><strong>Schedule:</strong></td><td>{{ content_data["jawbone"].get("schedule", "No schedule set") }}</td></tr>
-                                <tr><td><strong>Timezone:</strong></td><td>{{ content_data["jawbone"].get("default_timezone", "Unknown") }}</td></tr>
-                            </table>
-
-                        {% elif content_data.get("textdoc_id") %}
-                            <a href="/document/{{ content_data['textdoc_id'] }}">📄 View Document History</a>
-
+                        </span>
+                    </div>
+                    <div class="message-content markdown-content">
+                        {% if msg.author_role == 'assistant' %}
+                            {{ msg.content | markdown | safe }}
                         {% else %}
-                            <pre>{{ content_data }}</pre>
+                            {{ msg.content | trim }}
                         {% endif %}
-                    {% else %}
-                        {{ msg["content"] }}
-                    {% endif %}
-                </td>
-                <td>{{ msg["create_time"] }}</td>
-            </tr>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </tbody>
-    </table>
+        </div>
+    </div>
+</div>
 
-    <script>
-        $(document).ready(function() {
-            $('#messages-table').DataTable({
-                "order": [[3, "asc"]]  // Sort by Created At (Oldest to Newest)
-            });
+<div class="dev-mode">
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">Developer View</h2>
+                    <a href="/" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="messagesTableDev" class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Role</th>
+                                <th>Content</th>
+                                <th>Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for msg in all_messages %}
+                            <tr>
+                                <td><code>{{ msg.id }}</code></td>
+                                <td>
+                                    <span class="badge {% if msg.author_role == 'user' %}bg-primary{% else %}bg-success{% endif %}">
+                                        {{ msg.author_role }}
+                                    </span>
+                                </td>
+                                <td class="message-content">
+                                    <div class="markdown-content">
+                                        {% if msg.author_role == 'assistant' %}
+                                            {{ msg.content | markdown | safe }}
+                                        {% else %}
+                                            {{ msg.content | trim }}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>{{ msg.create_time }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-            hljs.highlightAll();  // Apply syntax highlighting
+{% block extra_css %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: var(--card-bg);
+        border-radius: 10px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .chat-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .back-button {
+        color: var(--text-color);
+        text-decoration: none;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+
+    .back-button:hover {
+        background-color: var(--hover-bg);
+    }
+
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .message-wrapper {
+        display: flex;
+        max-width: 85%;
+    }
+
+    .message-user {
+        margin-left: auto;
+    }
+
+    .message {
+        background: var(--card-bg);
+        border-radius: 18px;
+        padding: 1rem 1.25rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        position: relative;
+        min-width: 200px;
+        max-width: 100%;
+    }
+
+    .message-user .message {
+        background: var(--primary-color);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-assistant .message {
+        background: var(--card-bg);
+        border-bottom-left-radius: 4px;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        opacity: 0.8;
+    }
+
+    .message-time {
+        font-family: monospace;
+        font-size: 0.75rem;
+    }
+
+    .message-content {
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+
+    /* Markdown Content Styling */
+    .markdown-content {
+        line-height: 1.6;
+    }
+
+    .markdown-content p:last-child {
+        margin-bottom: 0;
+    }
+
+    .markdown-content p:first-child {
+        margin-top: 0;
+    }
+
+    .markdown-content em {
+        font-style: italic;
+        color: inherit;
+    }
+
+    .markdown-content strong {
+        font-weight: 600;
+        color: inherit;
+    }
+
+    .markdown-content code {
+        font-family: monospace;
+        background: rgba(0, 0, 0, 0.1);
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-size: 0.9em;
+        color: inherit;
+    }
+
+    .message-user .markdown-content code {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .markdown-content pre {
+        background: var(--card-bg);
+        padding: 1em;
+        border-radius: 5px;
+        overflow-x: auto;
+        margin: 1em 0;
+    }
+
+    .markdown-content pre code {
+        background: transparent;
+        padding: 0;
+    }
+
+    .markdown-content blockquote {
+        border-left: 4px solid var(--border-color);
+        margin: 0.5em 0;
+        padding-left: 1em;
+        color: inherit;
+        opacity: 0.8;
+    }
+
+    .markdown-content ul,
+    .markdown-content ol {
+        margin: 0.5em 0;
+        padding-left: 1.5em;
+        color: inherit;
+    }
+
+    .markdown-content li {
+        margin: 0.25em 0;
+    }
+
+    .markdown-content img {
+        max-width: 100%;
+        border-radius: 5px;
+        margin: 0.5em 0;
+    }
+
+    /* Dark mode adjustments */
+    [data-theme="dark"] .message-assistant .message {
+        background: var(--hover-bg);
+    }
+
+    [data-theme="dark"] .message-user .message {
+        background: var(--primary-color);
+    }
+
+    [data-theme="dark"] .markdown-content code {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme="dark"] .markdown-content pre {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* Developer view adjustments */
+    .dev-mode .card {
+        margin-top: 2rem;
+    }
+
+    .dev-mode .table td {
+        vertical-align: middle;
+    }
+
+    .dev-mode .message-content {
+        max-width: 600px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .dev-mode code {
+        font-size: 0.85em;
+        color: var(--text-color);
+        opacity: 0.8;
+    }
+
+    /* Container width adjustments */
+    @media (min-width: 768px) {
+        .container {
+            max-width: 1000px;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .message-wrapper {
+            max-width: 95%;
+        }
+        
+        .message {
+            padding: 0.75rem 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize DataTable for developer view
+        $('#messagesTableDev').DataTable({
+            order: [[3, 'asc']], // Sort by create time by default
+            pageLength: 25,
+            dom: 'Bfrtip',
+            buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
         });
-    </script>
-</body>
-</html>
+
+        // Scroll to bottom of chat
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    });
+</script>
+{% endblock %}
