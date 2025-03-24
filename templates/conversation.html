@@ -2,7 +2,14 @@
 
 {% block content %}
 <div class="conversation {% if dark_mode %}dark{% endif %}">
-    <h1>{{ conversation.title }}</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ conversation.title }}</h1>
+        <div>
+            <a href="{{ url_for('nice_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-tree"></i> Nice Mode
+            </a>
+        </div>
+    </div>
     
     {% for message in messages %}
         <div class="message {% if message.role == 'assistant' %}assistant{% else %}user{% endif %}">

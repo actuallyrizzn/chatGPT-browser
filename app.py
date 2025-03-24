@@ -217,6 +217,64 @@ def conversation(conversation_id):
                          user_name=user_name,
                          assistant_name=assistant_name)
 
+@app.route('/conversation/<conversation_id>/nice')
+def nice_conversation(conversation_id):
+    conn = get_db()
+    conversation = conn.execute('SELECT * FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
+    
+    if not conversation:
+        return "Conversation not found", 404
+    
+    # Find the canonical endpoint
+    canonical_endpoint = conn.execute('''
+        SELECT m.id, m.role, m.content, m.create_time, m.parent_id
+        FROM messages m
+        LEFT JOIN messages child ON m.id = child.parent_id
+        WHERE m.conversation_id = ? AND child.id IS NULL
+        ORDER BY m.create_time DESC
+        LIMIT 1
+    ''', (conversation_id,)).fetchone()
+    
+    if not canonical_endpoint:
+        return "No canonical endpoint found", 404
+    
+    # Get the path to root
+    path = []
+    current_id = canonical_endpoint['id']
+    
+    while current_id:
+        message = conn.execute('''
+            SELECT id, role, content, create_time, parent_id
+            FROM messages
+            WHERE id = ?
+        ''', (current_id,)).fetchone()
+        
+        if not message:
+            break
+            
+        path.append(message)
+        
+        if not message['parent_id']:
+            break
+            
+        current_id = message['parent_id']
+    
+    conn.close()
+    
+    dev_mode = get_setting('dev_mode', 'false') == 'true'
+    dark_mode = get_setting('dark_mode', 'false') == 'true'
+    user_name = get_setting('user_name', 'User')
+    assistant_name = get_setting('assistant_name', 'Assistant')
+    
+    return render_template('nice_conversation.html',
+                         conversation=conversation,
+                         messages=path,
+                         canonical_endpoint=canonical_endpoint['id'],
+                         dev_mode=dev_mode,
+                         dark_mode=dark_mode,
+                         user_name=user_name,
+                         assistant_name=assistant_name)
+
 @app.route('/import', methods=['POST'])
 def import_json():
     if 'file' not in request.files:
