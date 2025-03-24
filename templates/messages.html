@@ -14,31 +14,47 @@
         
         <div class="chat-container">
             {% for msg in messages %}
-            <div class="message-wrapper {% if msg.author_role == 'user' %}message-user{% else %}message-assistant{% endif %}">
+            <div class="message-wrapper {% if msg.role == 'user' %}message-user{% else %}message-assistant{% endif %}">
                 <div class="message">
                     <div class="message-header">
-                        <span class="message-role">{{ msg.author_role | title }}</span>
-                        <span class="message-time" title="{{ msg.create_time }}">
-                            {% if msg.create_time %}
-                                {% set time_parts = msg.create_time.split() %}
-                                {% if time_parts|length > 1 %}
-                                    {{ time_parts[1][:5] }}
-                                {% else %}
-                                    {{ msg.create_time }}
-                                {% endif %}
+                        <div class="message-info">
+                            <span class="message-role">{{ msg.role | title }}</span>
+                            {% if msg.metadata.model %}
+                            <span class="message-model">{{ msg.metadata.model }}</span>
                             {% endif %}
+                        </div>
+                        <span class="message-time" title="{{ msg.create_time }}">
+                            {{ msg.create_time | format_timestamp }}
                         </span>
                     </div>
                     <div class="message-content markdown-content">
-                        {% if msg.author_role == 'assistant' %}
+                        {% if msg.role == 'assistant' %}
                             {{ msg.content | markdown | safe }}
                         {% else %}
                             {{ msg.content | trim }}
                         {% endif %}
                     </div>
+                    {% if msg.children or msg.parent_id %}
+                    <div class="message-metadata">
+                        {% if msg.parent_id %}
+                        <span class="metadata-item">
+                            <i class="fas fa-reply"></i> Reply to: {{ msg.parent_id[:8] }}
+                        </span>
+                        {% endif %}
+                        {% if msg.children %}
+                        <span class="metadata-item">
+                            <i class="fas fa-code-branch"></i> Has {{ msg.children | length }} replies
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
+        </div>
+        
+        <div class="pagination-container" id="messagePagination">
+            <!-- Pagination will be inserted here by JavaScript -->
         </div>
     </div>
 </div>
@@ -49,9 +65,14 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <h2 class="mb-0">Developer View</h2>
-                    <a href="/" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
+                    <div class="btn-group">
+                        <a href="/" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <button class="btn btn-outline-secondary btn-sm" id="toggleMetadata">
+                            <i class="fas fa-info-circle"></i> Toggle Metadata
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
@@ -63,32 +84,58 @@
                                 <th>Role</th>
                                 <th>Content</th>
                                 <th>Created At</th>
+                                <th>Parent</th>
+                                <th>Children</th>
+                                <th class="metadata-column">Metadata</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for msg in all_messages %}
                             <tr>
                                 <td><code>{{ msg.id }}</code></td>
-                                <td>
-                                    <span class="badge {% if msg.author_role == 'user' %}bg-primary{% else %}bg-success{% endif %}">
-                                        {{ msg.author_role }}
-                                    </span>
-                                </td>
+                                <td>{{ msg.role | title }}</td>
                                 <td class="message-content">
                                     <div class="markdown-content">
-                                        {% if msg.author_role == 'assistant' %}
+                                        {% if msg.role == 'assistant' %}
                                             {{ msg.content | markdown | safe }}
                                         {% else %}
                                             {{ msg.content | trim }}
                                         {% endif %}
                                     </div>
                                 </td>
-                                <td>{{ msg.create_time }}</td>
+                                <td>{{ msg.create_time | format_timestamp }}</td>
+                                <td>{% if msg.parent_id %}<code>{{ msg.parent_id[:8] }}</code>{% endif %}</td>
+                                <td>
+                                    {% if msg.children %}
+                                    <span class="badge bg-info">{{ msg.children | length }}</span>
+                                    <small>{{ msg.children[0][:8] }}{% if msg.children | length > 1 %}, ...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="metadata-column">
+                                    <button class="btn btn-sm btn-outline-info view-metadata" data-message-id="{{ msg.id }}">
+                                        View
+                                    </button>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Metadata Modal -->
+<div class="modal fade" id="metadataModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Message Metadata</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre><code id="metadataContent"></code></pre>
             </div>
         </div>
     </div>
@@ -155,7 +202,7 @@
         background: var(--card-bg);
         border-radius: 18px;
         padding: 1rem 1.25rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--card-shadow);
         position: relative;
         min-width: 200px;
         max-width: 100%;
@@ -181,6 +228,24 @@
         opacity: 0.8;
     }
 
+    .message-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .message-role {
+        font-weight: 500;
+    }
+
+    .message-model {
+        font-family: monospace;
+        font-size: 0.75rem;
+        padding: 0.1rem 0.3rem;
+        background: rgba(0,0,0,0.1);
+        border-radius: 3px;
+    }
+
     .message-time {
         font-family: monospace;
         font-size: 0.75rem;
@@ -189,6 +254,20 @@
     .message-content {
         font-size: 1rem;
         line-height: 1.5;
+    }
+
+    .message-metadata {
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        opacity: 0.7;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .metadata-item {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
     }
 
     /* Markdown Content Styling */
@@ -200,124 +279,19 @@
         margin-bottom: 0;
     }
 
-    .markdown-content p:first-child {
-        margin-top: 0;
-    }
-
-    .markdown-content em {
-        font-style: italic;
-        color: inherit;
-    }
-
-    .markdown-content strong {
-        font-weight: 600;
-        color: inherit;
-    }
-
-    .markdown-content code {
-        font-family: monospace;
-        background: rgba(0, 0, 0, 0.1);
-        padding: 0.2em 0.4em;
-        border-radius: 3px;
-        font-size: 0.9em;
-        color: inherit;
-    }
-
-    .message-user .markdown-content code {
-        background: rgba(255, 255, 255, 0.2);
-    }
-
-    .markdown-content pre {
-        background: var(--card-bg);
-        padding: 1em;
-        border-radius: 5px;
-        overflow-x: auto;
-        margin: 1em 0;
-    }
-
-    .markdown-content pre code {
-        background: transparent;
-        padding: 0;
-    }
-
-    .markdown-content blockquote {
-        border-left: 4px solid var(--border-color);
-        margin: 0.5em 0;
-        padding-left: 1em;
-        color: inherit;
-        opacity: 0.8;
-    }
-
-    .markdown-content ul,
-    .markdown-content ol {
-        margin: 0.5em 0;
-        padding-left: 1.5em;
-        color: inherit;
-    }
-
-    .markdown-content li {
-        margin: 0.25em 0;
-    }
-
-    .markdown-content img {
-        max-width: 100%;
-        border-radius: 5px;
-        margin: 0.5em 0;
-    }
-
-    /* Dark mode adjustments */
-    [data-theme="dark"] .message-assistant .message {
-        background: var(--hover-bg);
-    }
-
-    [data-theme="dark"] .message-user .message {
-        background: var(--primary-color);
-    }
-
-    [data-theme="dark"] .markdown-content code {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    [data-theme="dark"] .markdown-content pre {
-        background: rgba(0, 0, 0, 0.2);
-    }
-
-    /* Developer view adjustments */
-    .dev-mode .card {
-        margin-top: 2rem;
-    }
-
-    .dev-mode .table td {
-        vertical-align: middle;
+    /* Developer View Styling */
+    .dev-mode .table {
+        font-size: 0.9rem;
     }
 
     .dev-mode .message-content {
-        max-width: 600px;
+        max-width: 400px;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .dev-mode code {
-        font-size: 0.85em;
-        color: var(--text-color);
-        opacity: 0.8;
-    }
-
-    /* Container width adjustments */
-    @media (min-width: 768px) {
-        .container {
-            max-width: 1000px;
-        }
-    }
-
-    @media (max-width: 767px) {
-        .message-wrapper {
-            max-width: 95%;
-        }
-        
-        .message {
-            padding: 0.75rem 1rem;
-        }
+    .metadata-column {
+        width: 100px;
     }
 </style>
 {% endblock %}
@@ -325,19 +299,93 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // Initialize DataTable for developer view
+        let currentPage = 1;
+        const conversationId = '{{ conversation_id }}';
+        
+        function loadMessages(page) {
+            $.get(`/api/messages/${conversationId}?page=${page}`)
+                .done(function(data) {
+                    // Update messages
+                    $('.chat-container').empty();
+                    data.messages.forEach(function(msg) {
+                        // Add message to container (implementation depends on your message template)
+                        appendMessage(msg);
+                    });
+                    
+                    // Update pagination
+                    updatePagination(data.page, data.total_pages);
+                })
+                .fail(function(err) {
+                    console.error('Failed to load messages:', err);
+                });
+        }
+        
+        function updatePagination(currentPage, totalPages) {
+            const pagination = $('<ul class="pagination"></ul>');
+            
+            // Previous button
+            pagination.append(`
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+                </li>
+            `);
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                pagination.append(`
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>
+                `);
+            }
+            
+            // Next button
+            pagination.append(`
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+                </li>
+            `);
+            
+            $('#messagePagination').html(pagination);
+        }
+        
+        // Handle pagination clicks
+        $(document).on('click', '.pagination .page-link', function(e) {
+            e.preventDefault();
+            const page = $(this).data('page');
+            if (page && page !== currentPage) {
+                currentPage = page;
+                loadMessages(page);
+            }
+        });
+        
+        // Handle metadata view button clicks
+        $('.view-metadata').click(function() {
+            const messageId = $(this).data('message-id');
+            const row = $(this).closest('tr');
+            const metadata = {
+                id: messageId,
+                role: row.find('td:eq(1)').text(),
+                parent_id: row.find('td:eq(4)').text(),
+                children: row.find('td:eq(5)').text(),
+                model: row.find('.message-model').text()
+            };
+            $('#metadataContent').text(JSON.stringify(metadata, null, 2));
+            $('#metadataModal').modal('show');
+        });
+        
+        // Toggle metadata columns
+        $('#toggleMetadata').click(function() {
+            $('.metadata-column').toggle();
+        });
+        
+        // Initialize DataTable for dev view
         $('#messagesTableDev').DataTable({
-            order: [[3, 'asc']], // Sort by create time by default
-            pageLength: 25,
+            order: [[3, 'asc']],  // Sort by create_time
+            pageLength: 50,
             dom: 'Bfrtip',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
         });
-
-        // Scroll to bottom of chat
-        const chatContainer = document.querySelector('.chat-container');
-        if (chatContainer) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
     });
 </script>
 {% endblock %}

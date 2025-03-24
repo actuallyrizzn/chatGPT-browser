@@ -5,28 +5,41 @@ import sqlite3
 import markdown
 import re
 import html
-from flask import Flask, render_template, g, jsonify, request, send_from_directory
+from flask import Flask, render_template, g, jsonify, request, send_from_directory, flash, redirect
 from markupsafe import Markup
 from datetime import datetime
+from typing import Dict, List, Set, Optional
+from dataclasses import dataclass
+from collections import defaultdict
 
 DATABASE = "athena.db"
 UPLOAD_FOLDER = "./"  # Adjust if files are stored elsewhere
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.secret_key = 'your-secret-key-here'  # Add this line for flash messages
+
+@dataclass
+class Message:
+    id: str
+    role: str
+    content: str
+    create_time: int
+    parent_id: Optional[str]
+    children: List[str]
+    metadata: dict
 
 # Get database connection
 def get_db():
-    db = getattr(g, "_database", None)
-    if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-        db.row_factory = sqlite3.Row  # Enables dict-like row access
-    return db
+    if 'db' not in g:
+        g.db = sqlite3.connect(DATABASE)
+        g.db.row_factory = sqlite3.Row  # Enables dict-like row access
+    return g.db
 
 # Close DB connection
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, "_database", None)
+    db = g.pop('db', None)
     if db is not None:
         db.close()
 
@@ -121,12 +134,23 @@ def safe_get(value, key, default=""):
         return value.get(key, default)
     return default
 
+# Custom Jinja filter to format timestamps
+def format_timestamp(value):
+    """Format a Unix timestamp into a readable string."""
+    if not value:
+        return ""
+    try:
+        return datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+    except (ValueError, TypeError):
+        return str(value)
+
 # Register custom Jinja filters
 app.jinja_env.filters["is_json"] = is_json
 app.jinja_env.filters["parse_json"] = parse_json
 app.jinja_env.filters["resolve_file"] = resolve_file_path
 app.jinja_env.filters["markdown"] = render_markdown
 app.jinja_env.filters["safe_get"] = safe_get
+app.jinja_env.filters["format_timestamp"] = format_timestamp
 
 # Homepage - Show Conversations
 @app.route("/")
@@ -142,25 +166,65 @@ def index():
 # Get messages in a conversation
 @app.route("/messages/<conversation_id>")
 def messages(conversation_id):
-    """Show messages in a conversation"""
-    messages = get_messages(conversation_id)
-    conversation = get_conversation(conversation_id)
-    
-    # For dev mode, get all messages
-    db = get_db()
-    all_messages = db.execute(
-        "SELECT id, author_role as role, content, strftime('%Y-%m-%d %H:%M:%S', create_time, 'unixepoch') AS create_time "
-        "FROM messages WHERE conversation_id = ? ORDER BY create_time ASC",
-        (conversation_id,)
-    ).fetchall()
-    
-    return render_template(
-        "messages.html",
-        messages=messages,  # Canonical thread for nice view
-        all_messages=all_messages,  # All messages for dev view
-        conversation=conversation,
-        conversation_id=conversation_id
-    )
+    try:
+        # Get the conversation details
+        conversation = get_conversation(conversation_id)
+        if not conversation:
+            flash('Conversation not found', 'error')
+            return redirect('/')
+        
+        # Get all messages for the conversation
+        all_messages = get_messages_for_conversation(conversation_id)
+        
+        # Create a dictionary for easier message lookup
+        messages_dict = {msg.id: msg for msg in all_messages}
+        
+        # Find root messages (messages with no parent)
+        root_messages = [msg for msg in all_messages if not msg.parent_id and msg.role == 'user']
+        
+        # Sort root messages by creation time
+        root_messages.sort(key=lambda x: x.create_time)
+        
+        # Build canonical chains from each root message
+        canonical_messages = []
+        processed_ids = set()  # Track which messages we've already included
+        
+        for root in root_messages:
+            if root.id in processed_ids:
+                continue
+                
+            # Start a new chain with this root
+            chain = []
+            current = root
+            
+            while True:
+                if current.id not in processed_ids:
+                    chain.append(current)
+                    processed_ids.add(current.id)
+                
+                # If there are children, follow the first child
+                if current.children:
+                    child_id = current.children[0]  # Take first child
+                    if child_id in messages_dict and child_id not in processed_ids:
+                        current = messages_dict[child_id]
+                        continue
+                
+                # No more valid children, break the chain
+                break
+            
+            # Only add chains that have at least a user message and a response
+            if len(chain) >= 2:
+                canonical_messages.extend(chain)
+        
+        return render_template('messages.html',
+                             conversation=conversation,
+                             messages=canonical_messages,
+                             all_messages=all_messages)
+                             
+    except Exception as e:
+        app.logger.error(f"Error displaying messages for conversation {conversation_id}: {str(e)}")
+        flash('An error occurred while loading the conversation', 'error')
+        return redirect('/')
 
 # API Endpoint for Server-Side Paginated Conversations
 @app.route("/api/conversations")
@@ -206,66 +270,77 @@ def get_messages(conversation_id):
     """Get messages for a conversation, properly threaded"""
     db = get_db()
     
-    # Get all messages with their metadata
-    messages = db.execute("""
-        SELECT m.id, m.author_role, m.content, 
-               strftime('%Y-%m-%d %H:%M:%S', m.create_time, 'unixepoch') AS create_time,
-               mm.parent_id,
-               (SELECT GROUP_CONCAT(child_id) FROM message_children WHERE parent_id = m.id) as children
-        FROM messages m
-        LEFT JOIN message_metadata mm ON m.id = mm.id
-        WHERE m.conversation_id = ? 
-        AND m.content != ''
-        AND m.author_role != 'system'
-        ORDER BY m.create_time ASC
-    """, (conversation_id,)).fetchall()
-    
-    # Group messages by role and content similarity
-    user_groups = []  # List of groups of similar user messages
-    current_user_group = []
-    assistant_responses = []  # List of assistant responses
-    
-    for msg in messages:
-        msg_dict = dict(msg)
+    try:
+        # Get all messages with their metadata
+        messages = db.execute("""
+            SELECT m.id, m.author_role, m.content, 
+                   strftime('%Y-%m-%d %H:%M:%S', m.create_time, 'unixepoch') AS create_time,
+                   COALESCE(mm.parent_id, '') as parent_id,
+                   COALESCE(mm.request_id, '') as request_id,
+                   COALESCE(mm.message_type, '') as message_type,
+                   COALESCE(mm.model_slug, '') as model_slug,
+                   COALESCE(mm.finish_details, '') as finish_details,
+                   COALESCE(mm.citations, '') as citations,
+                   COALESCE((SELECT GROUP_CONCAT(child_id) FROM message_children WHERE parent_id = m.id), '') as children
+            FROM messages m
+            LEFT JOIN message_metadata mm ON m.id = mm.id
+            WHERE m.conversation_id = ? 
+            AND m.content != ''
+            AND m.author_role != 'system'
+            ORDER BY m.create_time ASC
+        """, (conversation_id,)).fetchall()
         
-        if msg_dict['author_role'] == 'user':
-            # If this is a new topic (not similar to previous messages), start a new group
-            if not current_user_group or not is_similar_content(msg_dict['content'], current_user_group[0]['content']):
-                if current_user_group:
-                    user_groups.append(current_user_group)
-                current_user_group = [msg_dict]
-            else:
-                # Add to current group (it's a variation)
-                current_user_group.append(msg_dict)
-        else:  # assistant message
-            assistant_responses.append(msg_dict)
-    
-    # Add the final user group
-    if current_user_group:
-        user_groups.append(current_user_group)
-    
-    # Build canonical thread
-    canonical_thread = []
-    
-    for group in user_groups:
-        # Get the latest user message from this group
-        latest_user = max(group, key=lambda m: m['create_time'])
-        canonical_thread.append(latest_user)
+        # Group messages by role and content similarity
+        user_groups = []  # List of groups of similar user messages
+        current_user_group = []
+        assistant_responses = []  # List of assistant responses
         
-        # Find the first assistant response that came after this user message
-        possible_responses = [
-            r for r in assistant_responses
-            if r['create_time'] > latest_user['create_time']
-        ]
+        for msg in messages:
+            msg_dict = dict(msg)
+            
+            # Add metadata to message dictionary
+            msg_dict['has_metadata'] = bool(msg_dict.get('parent_id') or msg_dict.get('children'))
+            msg_dict['model'] = msg_dict.get('model_slug', '').split(':')[-1] if msg_dict.get('model_slug') else ''
+            
+            if msg_dict['author_role'] == 'user':
+                # If this is a new topic (not similar to previous messages), start a new group
+                if not current_user_group or not is_similar_content(msg_dict['content'], current_user_group[0]['content']):
+                    if current_user_group:
+                        user_groups.append(current_user_group)
+                    current_user_group = [msg_dict]
+                else:
+                    # Add to current group (it's a variation)
+                    current_user_group.append(msg_dict)
+            else:  # assistant message
+                assistant_responses.append(msg_dict)
         
-        if possible_responses:
-            # Take the first response after this user message
-            response = min(possible_responses, key=lambda r: r['create_time'])
-            canonical_thread.append(response)
-            # Remove this response so it's not used again
-            assistant_responses.remove(response)
-    
-    return canonical_thread
+        # Add the final user group
+        if current_user_group:
+            user_groups.append(current_user_group)
+        
+        # Build canonical thread
+        canonical_thread = []
+        
+        for group in user_groups:
+            # Add the most complete user message from the group
+            best_user_msg = max(group, key=lambda m: len(m['content']))
+            canonical_thread.append(best_user_msg)
+            
+            # Find and add the corresponding assistant response
+            msg_time = best_user_msg['create_time']
+            next_responses = [r for r in assistant_responses if r['create_time'] > msg_time]
+            if next_responses:
+                canonical_thread.append(next_responses[0])
+                assistant_responses.remove(next_responses[0])
+        
+        return canonical_thread
+        
+    except sqlite3.Error as e:
+        print(f"Database error in get_messages: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error in get_messages: {e}")
+        return []
 
 def is_similar_content(content1, content2, threshold=0.7):
     """Check if two messages are similar based on content"""
@@ -286,6 +361,247 @@ def is_similar_content(content1, content2, threshold=0.7):
     common_words = words1.intersection(words2)
     similarity = len(common_words) / max(len(words1), len(words2))
     return similarity >= threshold
+
+def get_message_details(message_id):
+    """Get detailed message information including all metadata"""
+    db = get_db()
+    
+    try:
+        message = db.execute("""
+            SELECT m.*, 
+                   mm.request_id, 
+                   mm.message_source, 
+                   mm.timestamp,
+                   mm.message_type, 
+                   mm.model_slug, 
+                   mm.parent_id,
+                   mm.finish_details, 
+                   mm.citations, 
+                   mm.content_references,
+                   (SELECT GROUP_CONCAT(child_id) FROM message_children WHERE parent_id = m.id) as children
+            FROM messages m
+            LEFT JOIN message_metadata mm ON m.id = mm.id
+            WHERE m.id = ?
+        """, (message_id,)).fetchone()
+        
+        if message:
+            result = dict(message)
+            # Convert timestamps to readable format
+            if result.get('create_time'):
+                result['create_time'] = datetime.fromtimestamp(result['create_time']).strftime('%Y-%m-%d %H:%M:%S')
+            if result.get('timestamp'):
+                result['timestamp'] = datetime.fromtimestamp(result['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            # Parse JSON fields
+            for field in ['finish_details', 'citations', 'content_references']:
+                if result.get(field):
+                    try:
+                        result[field] = json.loads(result[field])
+                    except json.JSONDecodeError:
+                        result[field] = None
+            # Split children into list if present
+            if result.get('children'):
+                result['children'] = result['children'].split(',')
+            return result
+        return None
+        
+    except sqlite3.Error as e:
+        print(f"Database error in get_message_details: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error in get_message_details: {e}")
+        return None
+
+def get_paginated_messages(conversation_id, page=1, per_page=50):
+    """Get paginated messages for a conversation"""
+    db = get_db()
+    offset = (page - 1) * per_page
+    
+    try:
+        # Get total count
+        total_count = db.execute(
+            "SELECT COUNT(*) FROM messages WHERE conversation_id = ?",
+            (conversation_id,)
+        ).fetchone()[0]
+        
+        # Get messages for current page
+        messages = db.execute("""
+            SELECT m.id, m.author_role, m.content, 
+                   strftime('%Y-%m-%d %H:%M:%S', m.create_time, 'unixepoch') AS create_time,
+                   COALESCE(mm.parent_id, '') as parent_id,
+                   COALESCE(mm.model_slug, '') as model_slug
+            FROM messages m
+            LEFT JOIN message_metadata mm ON m.id = mm.id
+            WHERE m.conversation_id = ?
+            ORDER BY m.create_time ASC
+            LIMIT ? OFFSET ?
+        """, (conversation_id, per_page, offset)).fetchall()
+        
+        return {
+            'messages': [dict(msg) for msg in messages],
+            'total': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_count + per_page - 1) // per_page
+        }
+        
+    except sqlite3.Error as e:
+        print(f"Database error in get_paginated_messages: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error in get_paginated_messages: {e}")
+        return None
+
+@app.route("/api/messages/<conversation_id>")
+def api_messages(conversation_id):
+    """API endpoint for paginated messages"""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        
+        result = get_paginated_messages(conversation_id, page, per_page)
+        if result is None:
+            return jsonify({'error': 'Failed to fetch messages'}), 500
+            
+        return jsonify(result)
+        
+    except ValueError:
+        return jsonify({'error': 'Invalid page or per_page parameter'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/api/messages/<conversation_id>/<message_id>/details")
+def api_message_details(conversation_id, message_id):
+    """API endpoint for getting detailed message information"""
+    try:
+        message = get_message_details(message_id)
+        if message is None:
+            return jsonify({'error': 'Message not found'}), 404
+            
+        # Verify the message belongs to the conversation
+        if str(message.get('conversation_id')) != conversation_id:
+            return jsonify({'error': 'Message does not belong to this conversation'}), 403
+            
+        return jsonify(message)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def get_messages_for_conversation(conversation_id: str) -> List[Message]:
+    """Fetch all messages for a conversation and return them as a list of Message objects."""
+    messages = []
+    db = get_db()
+    
+    # Get all messages with their metadata
+    cursor = db.execute('''
+        SELECT 
+            m.id,
+            m.author_role as role,
+            m.content,
+            m.create_time,
+            mm.parent_id,
+            mm.model_slug,
+            mm.finish_details,
+            mm.citations,
+            mm.content_references,
+            (SELECT GROUP_CONCAT(child_id) FROM message_children WHERE parent_id = m.id) as children
+        FROM messages m
+        LEFT JOIN message_metadata mm ON m.id = mm.id
+        WHERE m.conversation_id = ?
+        ORDER BY m.create_time ASC
+    ''', (conversation_id,))
+    
+    for row in cursor:
+        # Parse children from string to list
+        children = row['children'].split(',') if row['children'] else []
+        
+        # Create Message object
+        message = Message(
+            id=row['id'],
+            role=row['role'],
+            content=row['content'],
+            create_time=row['create_time'] or 0,
+            parent_id=row['parent_id'],
+            children=children,
+            metadata={
+                'model': row['model_slug'],
+                'finish_details': json.loads(row['finish_details']) if row['finish_details'] else None,
+                'citations': json.loads(row['citations']) if row['citations'] else None,
+                'content_references': json.loads(row['content_references']) if row['content_references'] else None
+            }
+        )
+        messages.append(message)
+    
+    return messages
+
+def find_root_messages(messages: Dict[str, Message]) -> Set[str]:
+    """Find all messages that have no parent (root nodes)."""
+    return {msg_id for msg_id, msg in messages.items() 
+            if not msg.parent_id and msg.role == 'user'}
+
+def find_canonical_path(messages: Dict[str, Message], msg_id: str, direction: str = 'forward') -> List[Message]:
+    """
+    Find the canonical path from a message.
+    direction: 'forward' to trace to leaves, 'backward' to trace to root, 'both' for full chain
+    """
+    path = []
+    visited = set()
+    
+    def trace_backward(current_id):
+        current_path = []
+        while current_id and current_id not in visited:
+            if current_id not in messages:
+                break
+            visited.add(current_id)
+            msg = messages[current_id]
+            if msg.role != 'system':
+                current_path.append(msg)
+            current_id = msg.parent_id
+        return list(reversed(current_path))
+    
+    def trace_forward(current_id):
+        current_path = []
+        while current_id and current_id not in visited:
+            if current_id not in messages:
+                break
+            visited.add(current_id)
+            msg = messages[current_id]
+            if msg.role != 'system':
+                current_path.append(msg)
+            # For forward tracing, we take the first child (if any)
+            current_id = msg.children[0] if msg.children else None
+        return current_path
+    
+    if direction == 'backward':
+        path = trace_backward(msg_id)
+    elif direction == 'forward':
+        path = trace_forward(msg_id)
+    else:  # both
+        # First trace back to root
+        root_path = trace_backward(msg_id)
+        visited.clear()  # Reset visited set
+        # Then trace forward from the original message
+        forward_path = trace_forward(msg_id)
+        # Combine paths, excluding the duplicate middle message
+        path = root_path + forward_path[1:] if forward_path else root_path
+    
+    return path
+
+def get_canonical_conversation(conversation_id: str) -> List[Message]:
+    """Get the canonical conversation path for a given conversation ID."""
+    messages = get_messages_for_conversation(conversation_id)
+    if not messages:
+        return []
+    
+    # Find all root messages
+    root_nodes = find_root_messages(messages)
+    if not root_nodes:
+        return []
+    
+    # Get the first root message (chronologically)
+    first_root = min(root_nodes, key=lambda msg_id: messages[msg_id].create_time)
+    
+    # Get the canonical path starting from this root
+    return find_canonical_path(messages, first_root, 'forward')
 
 if __name__ == "__main__":
     app.run(debug=True)
