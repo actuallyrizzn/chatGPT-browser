@@ -329,6 +329,11 @@ def toggle_dark_mode():
 
 @app.route('/settings')
 def settings():
+    user_name = get_setting('user_name', 'User')
+    assistant_name = get_setting('assistant_name', 'Assistant')
+    dark_mode = get_setting('dark_mode', 'false') == 'true'
+    dev_mode = get_setting('dev_mode', 'false') == 'true'
+    
     return render_template('settings.html',
                          user_name=user_name,
                          assistant_name=assistant_name,
@@ -337,7 +342,6 @@ def settings():
 
 @app.route('/update_names', methods=['POST'])
 def update_names():
-    global user_name, assistant_name
     user_name = request.form.get('user_name', 'User')
     assistant_name = request.form.get('assistant_name', 'Assistant')
     
