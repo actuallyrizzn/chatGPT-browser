@@ -1,0 +1,44 @@
+{% extends "layouts/base.html" %}
+{% from "components/conversation_card.html" import render_conversation_card, render_conversation_row %}
+
+{% block title %}Conversations - ChatGPT Browser{% endblock %}
+
+{% block content %}
+<div class="nice-mode">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for conversation in conversations %}
+                {{ render_conversation_card(conversation) }}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="dev-mode hidden">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Developer View</h2>
+            </div>
+            <div class="px-6 py-4">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
+                                <th class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                            {% for conversation in conversations %}
+                                {{ render_conversation_row(conversation) }}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

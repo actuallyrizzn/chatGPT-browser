@@ -1,0 +1,55 @@
+{% macro render_message(message, show_metadata=false) %}
+<div class="message-bubble {{ message.author_role }} prose dark:prose-invert max-w-none">
+    <div class="flex items-center gap-2 mb-2 text-sm text-gray-500 dark:text-gray-400">
+        <span class="font-medium">{{ message.author_role | title }}</span>
+        <span>•</span>
+        <span>{{ message.create_time | format_timestamp }}</span>
+        {% if message.metadata.get('model') %}
+        <span>•</span>
+        <span>{{ message.metadata.model }}</span>
+        {% endif %}
+    </div>
+    
+    <div class="message-content">
+        {{ message.content | markdown | safe }}
+    </div>
+    
+    {% if show_metadata and (message.metadata or message.parent_id or message.children) %}
+    <details class="mt-4 text-sm">
+        <summary class="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            Message Details
+        </summary>
+        <div class="mt-2 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto">
+            <table class="min-w-full">
+                <tbody>
+                    <tr>
+                        <td class="py-1 pr-4 font-medium">ID:</td>
+                        <td class="py-1 font-mono">{{ message.id }}</td>
+                    </tr>
+                    {% if message.parent_id %}
+                    <tr>
+                        <td class="py-1 pr-4 font-medium">Parent ID:</td>
+                        <td class="py-1 font-mono">{{ message.parent_id }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if message.children %}
+                    <tr>
+                        <td class="py-1 pr-4 font-medium">Children:</td>
+                        <td class="py-1 font-mono">{{ message.children | join(', ') }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if message.metadata %}
+                    <tr>
+                        <td class="py-1 pr-4 font-medium">Metadata:</td>
+                        <td class="py-1">
+                            <pre class="whitespace-pre-wrap">{{ message.metadata | tojson(indent=2) }}</pre>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+</div>
+{% endmacro %} 
