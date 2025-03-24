@@ -78,6 +78,17 @@ def init_db():
         )
     ''')
     
+    # Create message children relationships table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS message_children (
+            parent_id TEXT,
+            child_id TEXT,
+            PRIMARY KEY (parent_id, child_id),
+            FOREIGN KEY (parent_id) REFERENCES messages(id),
+            FOREIGN KEY (child_id) REFERENCES messages(id)
+        )
+    ''')
+    
     # Create settings table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS settings (
@@ -261,9 +272,23 @@ def import_json():
                         # Extract message data
                         role = author.get('role', '')
                         content_text = json.dumps(content.get('parts', []))
-                        msg_create_time = message.get('create_time', '')
-                        msg_update_time = message.get('update_time', '')
-                        parent_id = message_data.get('parent', '')  # Get parent ID from message_data
+                        
+                        # Handle timestamps - convert to float if string, or use None if missing/invalid
+                        def parse_timestamp(ts):
+                            if ts is None:
+                                return None
+                            try:
+                                if isinstance(ts, str):
+                                    return float(ts)
+                                return ts
+                            except (ValueError, TypeError):
+                                return None
+                        
+                        msg_create_time = parse_timestamp(message.get('create_time'))
+                        msg_update_time = parse_timestamp(message.get('update_time'))
+                        
+                        # Get parent ID from message_data
+                        parent_id = message_data.get('parent', '')
                         
                         # Insert message
                         conn.execute('''
@@ -272,6 +297,18 @@ def import_json():
                             VALUES (?, ?, ?, ?, ?, ?, ?)
                         ''', (message_id, conversation_id, role, content_text, 
                               msg_create_time, msg_update_time, parent_id))
+                        
+                        # Process children relationships
+                        children = message_data.get('children', [])
+                        if children:
+                            # First remove any existing relationships for this message
+                            conn.execute('DELETE FROM message_children WHERE parent_id = ?', (message_id,))
+                            # Then insert new relationships
+                            for child_id in children:
+                                conn.execute('''
+                                    INSERT INTO message_children (parent_id, child_id)
+                                    VALUES (?, ?)
+                                ''', (message_id, child_id))
                         
                         # Extract metadata if available
                         metadata = message.get('metadata', {})

@@ -430,3 +430,4 @@ chatgpt.db
 *.json
 *.db
 db/
+chat.html
