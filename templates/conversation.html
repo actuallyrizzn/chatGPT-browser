@@ -1,68 +1,160 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="conversation {% if dark_mode %}dark{% endif %}">
+<div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>{{ conversation.title }}</h1>
-        <div>
-            <a href="{{ url_for('nice_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary">
-                <i class="bi bi-tree"></i> Nice Mode
-            </a>
-        </div>
-    </div>
-    
-    {% for message in messages %}
-        <div class="message {% if message.role == 'assistant' %}assistant{% else %}user{% endif %}">
-            <div class="message-header">
-                {% if message.role == 'assistant' %}
-                    <strong>{{ assistant_name }}</strong>
-                {% else %}
-                    <strong>{{ user_name }}</strong>
-                {% endif %}
-                {% if dev_mode %}
-                    <span class="metadata">
-                        ({{ message.create_time }})
-                    </span>
-                {% endif %}
-            </div>
-            
-            <div class="message-content">
-                {% set content = message.content|fromjson %}
-                {% for part in content %}
-                    {% if part is string %}
-                        {{ part|markdown|safe }}
-                    {% else %}
-                        <pre><code>{{ part|tojson(indent=2) }}</code></pre>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            
+        <div class="d-flex gap-2">
             {% if dev_mode %}
-                <div class="message-metadata">
-                    <details>
-                        <summary>Metadata</summary>
-                        <pre>Message ID: {{ message.id }}
-Parent ID: {{ message.parent_id }}
-Role: {{ message.role }}
-Content Type: {{ message.content_type }}
-Create Time: {{ message.create_time|datetime }}
-Update Time: {{ message.update_time|datetime }}
-{% if message.metadata %}
-Message Type: {{ message.metadata.message_type }}
-Model Slug: {{ message.metadata.model_slug }}
-Citations: {{ message.metadata.citations|tojson(indent=2) }}
-Content References: {{ message.metadata.content_references|tojson(indent=2) }}
-Finish Details: {{ message.metadata.finish_details|tojson(indent=2) }}
-Is Complete: {{ message.metadata.is_complete }}
-Request ID: {{ message.metadata.request_id }}
-Timestamp: {{ message.metadata.timestamp_|datetime }}
-Message Source: {{ message.metadata.message_source }}
-Serialization Metadata: {{ message.metadata.serialization_metadata|tojson(indent=2) }}
-{% endif %}</pre>
-                    </details>
-                </div>
+            <button id="verboseToggle" class="btn btn-outline-secondary">
+                <i class="bi bi-list-ul"></i> {{ 'Hide' if verbose_mode else 'Show' }} Details
+            </button>
+            <a href="{{ url_for('nice_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-eye"></i> Switch to Nice View
+            </a>
             {% endif %}
         </div>
-    {% endfor %}
+    </div>
+
+    <div class="conversation">
+        {% for message in messages %}
+        <div class="message {% if message.role == 'assistant' %}assistant{% else %}user{% endif %} mb-4">
+            <div class="message-header d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <strong>{{ assistant_name if message.role == 'assistant' else user_name }}</strong>
+                    <span class="text-muted ms-2">{{ message.create_time|datetime }}</span>
+                </div>
+                {% if dev_mode and verbose_mode %}
+                <span class="badge bg-secondary">{{ message.role }}</span>
+                {% endif %}
+            </div>
+
+            <div class="message-content">
+                {% if message.content %}
+                    {% for part in message.content|fromjson %}
+                        {% if part is string %}
+                            {{ part|markdown|safe }}
+                        {% else %}
+                            <pre><code>{{ part|tojson(indent=2) }}</code></pre>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            {% if dev_mode and verbose_mode and message.metadata %}
+            <div class="message-metadata mt-3">
+                <div class="card">
+                    <div class="card-header p-2">
+                        <small>Message Details</small>
+                    </div>
+                    <div class="card-body p-2">
+                        <small>
+                            <dl class="row mb-0">
+                                <dt class="col-sm-3">Message ID</dt>
+                                <dd class="col-sm-9"><code>{{ message.id }}</code></dd>
+                                
+                                <dt class="col-sm-3">Parent ID</dt>
+                                <dd class="col-sm-9"><code>{{ message.parent_id or 'None' }}</code></dd>
+                                
+                                {% if message.metadata.model_slug %}
+                                <dt class="col-sm-3">Model</dt>
+                                <dd class="col-sm-9">{{ message.metadata.model_slug }}</dd>
+                                {% endif %}
+                                
+                                {% if message.metadata.message_type %}
+                                <dt class="col-sm-3">Type</dt>
+                                <dd class="col-sm-9">{{ message.metadata.message_type }}</dd>
+                                {% endif %}
+                                
+                                {% if message.metadata.finish_details %}
+                                <dt class="col-sm-3">Finish Details</dt>
+                                <dd class="col-sm-9"><pre class="mb-0"><code>{{ message.metadata.finish_details|tojson(indent=2) }}</code></pre></dd>
+                                {% endif %}
+                                
+                                {% if message.metadata.citations %}
+                                <dt class="col-sm-3">Citations</dt>
+                                <dd class="col-sm-9"><pre class="mb-0"><code>{{ message.metadata.citations|tojson(indent=2) }}</code></pre></dd>
+                                {% endif %}
+                            </dl>
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
 </div>
+
+<style>
+.message {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.message.assistant {
+    border-left: 4px solid #007bff;
+}
+
+.message.user {
+    border-left: 4px solid #28a745;
+}
+
+.message-content {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.message-metadata pre {
+    font-size: 0.85em;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.message-metadata dl {
+    font-size: 0.9em;
+}
+
+.message-metadata dt {
+    font-weight: 600;
+    color: #666;
+}
+
+.message-metadata code {
+    color: #666;
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+/* Dark mode styles */
+.dark-mode .message {
+    background-color: #2d2d2d;
+    border-color: #404040;
+}
+
+.dark-mode .message-metadata pre,
+.dark-mode .message-metadata code {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+.dark-mode .message-metadata dt {
+    color: #aaa;
+}
+</style>
+
+<script>
+document.getElementById('verboseToggle')?.addEventListener('click', function() {
+    fetch('/toggle_verbose_mode?temp=true')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            }
+        });
+});
+</script>
 {% endblock %} 

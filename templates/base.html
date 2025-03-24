@@ -27,13 +27,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('toggle_dev_mode') }}">
+                        <span class="nav-link">
                             {% if dev_mode %}
-                                <i class="bi bi-code-slash"></i> Dev Mode
+                                <i class="bi bi-code-slash"></i> Dev View
                             {% else %}
-                                <i class="bi bi-code"></i> Dev Mode
+                                <i class="bi bi-eye"></i> Nice View
                             {% endif %}
-                        </a>
+                        </span>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('settings') }}">

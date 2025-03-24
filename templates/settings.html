@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <h4 class="mb-0">Settings</h4>
             </div>
@@ -17,12 +17,111 @@
                         <label for="assistant_name" class="form-label">Assistant Name</label>
                         <input type="text" class="form-control" id="assistant_name" name="assistant_name" value="{{ assistant_name }}">
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="view_mode" {% if not dev_mode %}checked{% endif %}>
+                            <label class="form-check-label" for="view_mode">
+                                <span class="nice-label">Nice Mode</span>
+                                <span class="dev-label d-none">Developer Mode</span>
+                            </label>
+                            <small class="form-text text-muted d-block mt-1">
+                                <span class="nice-desc">Clean conversation view showing only the canonical path.</span>
+                                <span class="dev-desc d-none">Full conversation view with all messages and technical details.</span>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="verbose_mode" {% if verbose_mode and dev_mode %}checked{% endif %} {% if not dev_mode %}disabled{% endif %}>
+                            <label class="form-check-label" for="verbose_mode">Verbose Mode</label>
+                            <small class="form-text text-muted d-block mt-1">Show all messages & metadata in developer view.</small>
+                        </div>
+                    </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
             </div>
         </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Import Conversation</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('import_json') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="json_file" class="form-label">Choose JSON File</label>
+                        <input type="file" class="form-control" id="json_file" name="json_file" accept=".json">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Import JSON</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.form-switch {
+    padding-left: 2.8em;
+}
+
+.form-check-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+
+<script>
+document.getElementById('view_mode').addEventListener('change', function() {
+    const isNiceMode = this.checked;
+    const niceLabel = document.querySelector('.nice-label');
+    const devLabel = document.querySelector('.dev-label');
+    const niceDesc = document.querySelector('.nice-desc');
+    const devDesc = document.querySelector('.dev-desc');
+    const verboseToggle = document.getElementById('verbose_mode');
+    
+    if (isNiceMode) {
+        niceLabel.classList.remove('d-none');
+        devLabel.classList.add('d-none');
+        niceDesc.classList.remove('d-none');
+        devDesc.classList.add('d-none');
+        // Disable and uncheck verbose mode when switching to nice mode
+        verboseToggle.disabled = true;
+        verboseToggle.checked = false;
+        // Turn off verbose mode in backend
+        fetch('/toggle_verbose_mode')
+            .then(response => response.json());
+    } else {
+        niceLabel.classList.add('d-none');
+        devLabel.classList.remove('d-none');
+        niceDesc.classList.add('d-none');
+        devDesc.classList.remove('d-none');
+        // Enable verbose mode toggle in dev mode
+        verboseToggle.disabled = false;
+    }
+    
+    fetch('/toggle_view_mode')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Optionally show a success message
+            }
+        });
+});
+
+document.getElementById('verbose_mode').addEventListener('change', function() {
+    if (!document.getElementById('view_mode').checked) {  // Only allow toggle in dev mode
+        fetch('/toggle_verbose_mode')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Optionally show a success message
+                }
+            });
+    }
+});
+</script>
 {% endblock %} 

@@ -100,8 +100,12 @@ def init_db():
     # Insert default settings if they don't exist
     conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('user_name', 'User'))
     conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('assistant_name', 'Assistant'))
-    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('dev_mode', 'false'))
+    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('dev_mode', 'false'))  # false = nice mode, true = dev mode
     conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('dark_mode', 'false'))
+    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('verbose_mode', 'false'))
+    
+    # Clean up any old settings that are no longer used
+    conn.execute('DELETE FROM settings WHERE key = ?', ('nice_mode',))
     
     conn.commit()
     conn.close()
@@ -165,6 +169,21 @@ def index():
 
 @app.route('/conversation/<conversation_id>')
 def conversation(conversation_id):
+    # Get settings and handle overrides
+    dev_mode = get_setting('dev_mode', 'false') == 'true'
+    override_dev_mode = session.get('override_dev_mode', False)
+    verbose_mode = get_setting('verbose_mode', 'false') == 'true'
+    override_verbose_mode = session.get('override_verbose_mode', False)
+    dark_mode = get_setting('dark_mode', 'false') == 'true'
+    
+    # If in nice mode (dev_mode is false) and no override, redirect to nice view
+    if not dev_mode and not override_dev_mode:
+        return redirect(url_for('nice_conversation', conversation_id=conversation_id))
+    
+    # Clear any existing overrides
+    session.pop('override_dev_mode', None)
+    session.pop('override_verbose_mode', None)
+    
     conn = get_db()
     conversation = conn.execute('SELECT * FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
     
@@ -213,6 +232,7 @@ def conversation(conversation_id):
                          conversation=conversation,
                          messages=message_list,
                          dev_mode=dev_mode,
+                         verbose_mode=verbose_mode or override_verbose_mode,
                          dark_mode=dark_mode,
                          user_name=user_name,
                          assistant_name=assistant_name)
@@ -244,36 +264,70 @@ def nice_conversation(conversation_id):
     
     while current_id:
         message = conn.execute('''
-            SELECT id, role, content, create_time, parent_id
-            FROM messages
-            WHERE id = ?
+            SELECT m.*, 
+                   mm.message_type, mm.model_slug, mm.citations, mm.content_references,
+                   mm.finish_details, mm.is_complete, mm.request_id, mm.timestamp_,
+                   mm.message_source, mm.serialization_metadata
+            FROM messages m
+            LEFT JOIN message_metadata mm ON m.id = mm.message_id
+            WHERE m.id = ?
         ''', (current_id,)).fetchone()
         
         if not message:
             break
             
-        path.append(message)
+        # Convert message to dict with metadata
+        message_dict = dict(message)
+        if message_dict['message_type']:  # If metadata exists
+            message_dict['metadata'] = {
+                'message_type': message_dict.pop('message_type'),
+                'model_slug': message_dict.pop('model_slug'),
+                'citations': message_dict.pop('citations'),
+                'content_references': message_dict.pop('content_references'),
+                'finish_details': message_dict.pop('finish_details'),
+                'is_complete': message_dict.pop('is_complete'),
+                'request_id': message_dict.pop('request_id'),
+                'timestamp_': message_dict.pop('timestamp_'),
+                'message_source': message_dict.pop('message_source'),
+                'serialization_metadata': message_dict.pop('serialization_metadata')
+            }
+        path.append(message_dict)
         
         if not message['parent_id']:
             break
             
         current_id = message['parent_id']
     
+    # Get total message count for the conversation
+    total_messages = conn.execute('''
+        SELECT COUNT(*) as count
+        FROM messages
+        WHERE conversation_id = ?
+    ''', (conversation_id,)).fetchone()['count']
+    
     conn.close()
     
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
+    verbose_mode = get_setting('verbose_mode', 'false') == 'true'
+    override_verbose_mode = session.get('override_verbose_mode', False)
     user_name = get_setting('user_name', 'User')
     assistant_name = get_setting('assistant_name', 'Assistant')
     
     return render_template('nice_conversation.html',
                          conversation=conversation,
-                         messages=path,
-                         canonical_endpoint=canonical_endpoint['id'],
+                         canonical_path=path,
+                         total_messages=total_messages,
                          dev_mode=dev_mode,
+                         verbose_mode=verbose_mode or override_verbose_mode,
                          dark_mode=dark_mode,
                          user_name=user_name,
                          assistant_name=assistant_name)
+
+@app.route('/conversation/<conversation_id>/full')
+def full_conversation(conversation_id):
+    session['override_dev_mode'] = True
+    return redirect(url_for('conversation', conversation_id=conversation_id))
 
 @app.route('/import', methods=['POST'])
 def import_json():
@@ -408,12 +462,12 @@ def import_json():
     except Exception as e:
         return f'Error importing file: {str(e)}', 400
 
-@app.route('/toggle_dev_mode')
-def toggle_dev_mode():
-    current_mode = get_setting('dev_mode', 'false')
-    new_mode = 'true' if current_mode == 'false' else 'false'
-    set_setting('dev_mode', new_mode)
-    return redirect(request.referrer or url_for('index'))
+@app.route('/toggle_view_mode')
+def toggle_view_mode():
+    current = get_setting('dev_mode', 'false')
+    new_value = 'false' if current == 'true' else 'true'
+    set_setting('dev_mode', new_value)
+    return jsonify({'success': True, 'dev_mode': new_value == 'true'})
 
 @app.route('/toggle_dark_mode')
 def toggle_dark_mode():
@@ -422,18 +476,30 @@ def toggle_dark_mode():
     set_setting('dark_mode', new_mode)
     return redirect(request.referrer or url_for('index'))
 
+@app.route('/toggle_verbose_mode')
+def toggle_verbose_mode():
+    if request.args.get('temp') == 'true':
+        session['override_verbose_mode'] = not session.get('override_verbose_mode', False)
+        return jsonify({'success': True, 'verbose_mode': session.get('override_verbose_mode')})
+    else:
+        current = get_setting('verbose_mode', 'false')
+        new_value = 'false' if current == 'true' else 'true'
+        set_setting('verbose_mode', new_value)
+        return jsonify({'success': True, 'verbose_mode': new_value == 'true'})
+
 @app.route('/settings')
 def settings():
+    dev_mode = get_setting('dev_mode', 'false') == 'true'
+    dark_mode = get_setting('dark_mode', 'false') == 'true'
+    verbose_mode = get_setting('verbose_mode', 'false') == 'true'
     user_name = get_setting('user_name', 'User')
     assistant_name = get_setting('assistant_name', 'Assistant')
-    dark_mode = get_setting('dark_mode', 'false') == 'true'
-    dev_mode = get_setting('dev_mode', 'false') == 'true'
-    
     return render_template('settings.html',
-                         user_name=user_name,
-                         assistant_name=assistant_name,
+                         dev_mode=dev_mode,
                          dark_mode=dark_mode,
-                         dev_mode=dev_mode)
+                         verbose_mode=verbose_mode,
+                         user_name=user_name,
+                         assistant_name=assistant_name)
 
 @app.route('/update_names', methods=['POST'])
 def update_names():

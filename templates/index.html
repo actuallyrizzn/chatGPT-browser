@@ -6,14 +6,6 @@
         <div class="col">
             <h1>ChatGPT Conversations</h1>
         </div>
-        <div class="col-auto">
-            <form action="{{ url_for('import_json') }}" method="post" enctype="multipart/form-data" class="d-inline">
-                <div class="input-group">
-                    <input type="file" class="form-control" name="file" accept=".json" required>
-                    <button class="btn btn-primary" type="submit">Import JSON</button>
-                </div>
-            </form>
-        </div>
     </div>
 
     <div class="conversation-list">
@@ -42,7 +34,7 @@ Current Node: {{ conversation.current_node }}</pre>
         </div>
         {% else %}
         <div class="alert alert-info">
-            No conversations found. Import a ChatGPT JSON file to get started.
+            No conversations found. Go to Settings to import a ChatGPT JSON file.
         </div>
         {% endfor %}
     </div>

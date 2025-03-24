@@ -1,11 +1,14 @@
-import sqlite3
+from app import init_db
+import os
 
-def init_db():
-    conn = sqlite3.connect('chatgpt.db')
-    with open('schema.sql', 'r') as f:
-        conn.executescript(f.read())
-    conn.close()
+def main():
+    # Remove existing database if it exists
+    if os.path.exists('chatgpt.db'):
+        os.remove('chatgpt.db')
+    
+    # Initialize fresh database
+    init_db()
+    print("Database initialized successfully!")
 
 if __name__ == '__main__':
-    init_db()
-    print("Database initialized successfully!") 
+    main() 
