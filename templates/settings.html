@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Settings</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('update_names') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="user_name" class="form-label">Your Name</label>
+                        <input type="text" class="form-control" id="user_name" name="user_name" value="{{ user_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="assistant_name" class="form-label">Assistant Name</label>
+                        <input type="text" class="form-control" id="assistant_name" name="assistant_name" value="{{ assistant_name }}">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

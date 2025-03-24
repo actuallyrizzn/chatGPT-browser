@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="conversation {% if dark_mode %}dark{% endif %}">
+    <h1>{{ conversation.title }}</h1>
+    
+    {% for message in messages %}
+        <div class="message {% if message.role == 'assistant' %}assistant{% else %}user{% endif %}">
+            <div class="message-header">
+                {% if message.role == 'assistant' %}
+                    <strong>{{ assistant_name }}</strong>
+                {% else %}
+                    <strong>{{ user_name }}</strong>
+                {% endif %}
+                {% if dev_mode %}
+                    <span class="metadata">
+                        ({{ message.create_time }})
+                    </span>
+                {% endif %}
+            </div>
+            
+            <div class="message-content">
+                {% set content = message.content|fromjson %}
+                {% for part in content %}
+                    {% if part is string %}
+                        {{ part|markdown|safe }}
+                    {% else %}
+                        <pre><code>{{ part|tojson(indent=2) }}</code></pre>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            {% if dev_mode %}
+                <div class="message-metadata">
+                    <details>
+                        <summary>Metadata</summary>
+                        <pre>{{ message|tojson(indent=2) }}</pre>
+                    </details>
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+{% endblock %} 

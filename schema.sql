@@ -57,8 +57,24 @@ CREATE TABLE IF NOT EXISTS message_children (
     FOREIGN KEY (child_id) REFERENCES messages(id)
 );
 
+-- Create settings table
+CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
 CREATE INDEX IF NOT EXISTS idx_message_children_parent_id ON message_children(parent_id);
-CREATE INDEX IF NOT EXISTS idx_message_children_child_id ON message_children(child_id); 
+CREATE INDEX IF NOT EXISTS idx_message_children_child_id ON message_children(child_id);
+
+-- Insert default settings
+INSERT OR IGNORE INTO settings (key, value) VALUES 
+    ('dev_mode', 'false'),
+    ('dark_mode', 'false'),
+    ('user_name', 'You'),
+    ('assistant_name', 'Assistant'); 

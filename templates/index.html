@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>ChatGPT Conversations</h1>
+        </div>
+        <div class="col-auto">
+            <form action="{{ url_for('import_json') }}" method="post" enctype="multipart/form-data" class="d-inline">
+                <div class="input-group">
+                    <input type="file" class="form-control" name="file" accept=".json" required>
+                    <button class="btn btn-primary" type="submit">Import JSON</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="conversation-list">
+        {% for conversation in conversations %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <a href="{{ url_for('conversation', conversation_id=conversation.id) }}" class="text-decoration-none">
+                        {{ conversation.title }}
+                    </a>
+                </h5>
+                <p class="card-text">
+                    <small class="text-muted">
+                        Last updated: {{ conversation.update_time|datetime }}
+                    </small>
+                </p>
+                
+                {% if dev_mode %}
+                <div class="metadata">
+                    <pre>ID: {{ conversation.id }}
+Created: {{ conversation.create_time|datetime }}
+Current Node: {{ conversation.current_node }}</pre>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            No conversations found. Import a ChatGPT JSON file to get started.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 
