@@ -34,7 +34,24 @@
                 <div class="message-metadata">
                     <details>
                         <summary>Metadata</summary>
-                        <pre>{{ message|tojson(indent=2) }}</pre>
+                        <pre>Message ID: {{ message.id }}
+Parent ID: {{ message.parent_id }}
+Role: {{ message.role }}
+Content Type: {{ message.content_type }}
+Create Time: {{ message.create_time|datetime }}
+Update Time: {{ message.update_time|datetime }}
+{% if message.metadata %}
+Message Type: {{ message.metadata.message_type }}
+Model Slug: {{ message.metadata.model_slug }}
+Citations: {{ message.metadata.citations|tojson(indent=2) }}
+Content References: {{ message.metadata.content_references|tojson(indent=2) }}
+Finish Details: {{ message.metadata.finish_details|tojson(indent=2) }}
+Is Complete: {{ message.metadata.is_complete }}
+Request ID: {{ message.metadata.request_id }}
+Timestamp: {{ message.metadata.timestamp_|datetime }}
+Message Source: {{ message.metadata.message_source }}
+Serialization Metadata: {{ message.metadata.serialization_metadata|tojson(indent=2) }}
+{% endif %}</pre>
                     </details>
                 </div>
             {% endif %}

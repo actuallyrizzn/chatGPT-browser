@@ -8,6 +8,8 @@
     --border-color: #dee2e6;
     --code-bg: #f8f9fa;
     --blockquote-color: #6c757d;
+    --card-bg: #ffffff;
+    --card-border: #dee2e6;
 }
 
 body.dark {
@@ -20,6 +22,8 @@ body.dark {
     --border-color: #495057;
     --code-bg: #343a40;
     --blockquote-color: #adb5bd;
+    --card-bg: #2d3238;
+    --card-border: #495057;
 }
 
 body {
@@ -173,4 +177,42 @@ body {
 /* Bootstrap Icons */
 .bi {
     margin-right: 0.25rem;
+}
+
+/* Card Styles */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+    color: var(--text-color);
+}
+
+.card-header {
+    background-color: var(--card-bg);
+    border-bottom-color: var(--card-border);
+    color: var(--text-color);
+}
+
+.card-body {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+/* Conversation List */
+.conversation-list .card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.conversation-list .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.conversation-list .card-title {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.conversation-list .card-text {
+    color: var(--text-color);
+    opacity: 0.7;
 } 

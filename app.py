@@ -55,6 +55,7 @@ def init_db():
             content TEXT,
             create_time TEXT,
             update_time TEXT,
+            parent_id TEXT,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id)
         )
     ''')
@@ -108,12 +109,13 @@ def set_setting(key, value):
 
 @app.template_filter('datetime')
 def format_datetime(timestamp):
-    if timestamp is None:
-        return ""
     try:
-        return datetime.fromtimestamp(float(timestamp)).strftime('%Y-%m-%d %H:%M:%S')
+        # Handle both string and float timestamps
+        if isinstance(timestamp, str):
+            timestamp = float(timestamp)
+        return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
     except (ValueError, TypeError):
-        return str(timestamp)
+        return timestamp
 
 @app.template_filter('json_loads')
 def json_loads_filter(value):
@@ -153,33 +155,52 @@ def index():
 @app.route('/conversation/<conversation_id>')
 def conversation(conversation_id):
     conn = get_db()
-    
-    # Get conversation details
-    conversation = conn.execute('''
-        SELECT * FROM conversations WHERE id = ?
-    ''', (conversation_id,)).fetchone()
+    conversation = conn.execute('SELECT * FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
     
     if not conversation:
-        conn.close()
         return "Conversation not found", 404
     
-    # Get messages for this conversation
+    # Get all messages with their metadata
     messages = conn.execute('''
-        SELECT * FROM messages 
-        WHERE conversation_id = ?
-        ORDER BY create_time
+        SELECT m.*, 
+               mm.message_type, mm.model_slug, mm.citations, mm.content_references,
+               mm.finish_details, mm.is_complete, mm.request_id, mm.timestamp_,
+               mm.message_source, mm.serialization_metadata
+        FROM messages m
+        LEFT JOIN message_metadata mm ON m.id = mm.message_id
+        WHERE m.conversation_id = ?
+        ORDER BY m.create_time
     ''', (conversation_id,)).fetchall()
     
     conn.close()
+    
+    # Convert messages to list of dicts with metadata
+    message_list = []
+    for msg in messages:
+        message_dict = dict(msg)
+        if message_dict['message_type']:  # If metadata exists
+            message_dict['metadata'] = {
+                'message_type': message_dict.pop('message_type'),
+                'model_slug': message_dict.pop('model_slug'),
+                'citations': message_dict.pop('citations'),
+                'content_references': message_dict.pop('content_references'),
+                'finish_details': message_dict.pop('finish_details'),
+                'is_complete': message_dict.pop('is_complete'),
+                'request_id': message_dict.pop('request_id'),
+                'timestamp_': message_dict.pop('timestamp_'),
+                'message_source': message_dict.pop('message_source'),
+                'serialization_metadata': message_dict.pop('serialization_metadata')
+            }
+        message_list.append(message_dict)
     
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
     user_name = get_setting('user_name', 'User')
     assistant_name = get_setting('assistant_name', 'Assistant')
     
-    return render_template('conversation.html', 
+    return render_template('conversation.html',
                          conversation=conversation,
-                         messages=messages,
+                         messages=message_list,
                          dev_mode=dev_mode,
                          dark_mode=dark_mode,
                          user_name=user_name,
@@ -242,14 +263,15 @@ def import_json():
                         content_text = json.dumps(content.get('parts', []))
                         msg_create_time = message.get('create_time', '')
                         msg_update_time = message.get('update_time', '')
+                        parent_id = message_data.get('parent', '')  # Get parent ID from message_data
                         
                         # Insert message
                         conn.execute('''
                             INSERT OR REPLACE INTO messages
-                            (id, conversation_id, role, content, create_time, update_time)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            (id, conversation_id, role, content, create_time, update_time, parent_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
                         ''', (message_id, conversation_id, role, content_text, 
-                              msg_create_time, msg_update_time))
+                              msg_create_time, msg_update_time, parent_id))
                         
                         # Extract metadata if available
                         metadata = message.get('metadata', {})
