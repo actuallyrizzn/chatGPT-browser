@@ -4,47 +4,59 @@
 
 {% block content %}
 <div class="nice-mode">
-    <div class="conversation-grid">
-        {% for conv in conversations %}
-        <a href="/messages/{{ conv.id }}" class="conversation-card">
-            <div class="conversation-icon">
-                <i class="fas fa-comments"></i>
-            </div>
-            <div class="conversation-details">
-                <h3 class="conversation-title">{{ conv.title or "Untitled Conversation" }}</h3>
-                <div class="conversation-time">
-                    <i class="fas fa-clock me-1"></i>
-                    {{ conv.create_time }}
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for conv in conversations %}
+            <a href="/messages/{{ conv.id }}" class="block rounded-lg bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400">
+                <div class="p-6">
+                    <div class="flex items-start space-x-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center">
+                            <i class="fas fa-comments text-white text-lg"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                                {{ conv.title or "Untitled Conversation" }}
+                            </h3>
+                            <div class="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-300">
+                                <i class="fas fa-clock mr-2"></i>
+                                {{ conv.create_time | format_timestamp }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </a>
-        {% endfor %}
+            </a>
+            {% endfor %}
+        </div>
     </div>
 </div>
 
-<div class="dev-mode">
-    <div class="card">
-        <div class="card-body">
-            <h2 class="card-title mb-4">Developer View</h2>
-            <div class="table-responsive">
-                <table id="conversationsTableDev" class="table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Title</th>
-                            <th>Created At</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for conv in conversations %}
-                        <tr onclick="window.location.href='/messages/{{ conv.id }}'" style="cursor: pointer;">
-                            <td>{{ conv.id }}</td>
-                            <td>{{ conv.title or "Untitled Conversation" }}</td>
-                            <td>{{ conv.create_time }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<div class="dev-mode hidden">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Developer View</h2>
+            </div>
+            <div class="px-6 py-4">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
+                                <th class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                            {% for conv in conversations %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="window.location.href='/messages/{{ conv.id }}'">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">{{ conv.id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{{ conv.title or "Untitled Conversation" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ conv.create_time | format_timestamp }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -53,105 +65,27 @@
 
 {% block extra_css %}
 <style>
-    .conversation-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-        padding: 1rem;
+    /* Table improvements */
+    .overflow-x-auto {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
     }
 
-    .conversation-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        padding: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        text-decoration: none;
-        color: var(--text-color);
-        transition: all 0.3s ease;
+    .overflow-x-auto::-webkit-scrollbar {
+        height: 8px;
     }
 
-    .conversation-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--card-shadow);
-        border-color: var(--primary-color);
-        text-decoration: none;
-        color: var(--text-color);
+    .overflow-x-auto::-webkit-scrollbar-track {
+        background: transparent;
     }
 
-    .conversation-icon {
-        background: var(--primary-color);
-        color: white;
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        flex-shrink: 0;
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.5);
+        border-radius: 4px;
     }
 
-    .conversation-details {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .conversation-title {
-        font-size: 1.1rem;
-        font-weight: 500;
-        margin: 0 0 0.5rem 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .conversation-time {
-        font-size: 0.9rem;
-        opacity: 0.8;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    /* Dark mode specific styles */
-    [data-theme="dark"] .conversation-card {
-        background: var(--card-bg);
-    }
-
-    [data-theme="dark"] .conversation-card:hover {
-        background: var(--hover-bg);
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .conversation-grid {
-            grid-template-columns: 1fr;
-            padding: 0.5rem;
-        }
-    }
-
-    /* Table styles */
-    .table tr:hover {
-        background-color: var(--hover-bg);
+    .dark .overflow-x-auto::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.5);
     }
 </style>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    $(document).ready(function() {
-        // Initialize DataTable for developer view
-        $('#conversationsTableDev').DataTable({
-            order: [[2, 'desc']], // Sort by create time by default
-            pageLength: 25,
-            dom: 'Bfrtip',
-            buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
-            ]
-        });
-    });
-</script>
 {% endblock %}

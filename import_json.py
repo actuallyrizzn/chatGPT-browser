@@ -218,7 +218,7 @@ def process_conversation(cursor: sqlite3.Cursor, convo: Dict[str, Any]) -> Dict[
         
         stats['conversations_processed'] += 1
         
-        # Process messages
+        # First pass: Process all messages and their direct metadata
         for msg_id, msg_data in convo.get("mapping", {}).items():
             message_data = msg_data.get("message")
             
@@ -227,15 +227,35 @@ def process_conversation(cursor: sqlite3.Cursor, convo: Dict[str, Any]) -> Dict[
                     stats['messages_processed'] += 1
                 else:
                     stats['messages_failed'] += 1
+                    continue  # Skip metadata if message insert failed
                     
-                metadata = message_data.get("metadata", {})
+                # Get metadata from both the message and the mapping
+                metadata = {
+                    **(message_data.get("metadata", {}) or {}),  # Message metadata
+                    **(msg_data.get("metadata", {}) or {}),      # Mapping metadata
+                    "parent_id": msg_data.get("parent")          # Parent from mapping
+                }
+                
                 if insert_metadata(cursor, msg_id, metadata):
                     stats['metadata_processed'] += 1
                 else:
                     stats['metadata_failed'] += 1
+        
+        # Second pass: Process all parent-child relationships
+        for msg_id, msg_data in convo.get("mapping", {}).items():
+            # Get children from both the message and the mapping
+            children = set()
             
-            children = msg_data.get("children", [])
-            if insert_children(cursor, msg_id, children):
+            # Add children from the mapping
+            if isinstance(msg_data.get("children"), list):
+                children.update(msg_data["children"])
+            
+            # Add children from the message data
+            message_data = msg_data.get("message", {})
+            if isinstance(message_data, dict) and isinstance(message_data.get("metadata", {}).get("children"), list):
+                children.update(message_data["metadata"]["children"])
+            
+            if children and insert_children(cursor, msg_id, list(children)):
                 stats['children_processed'] += 1
             else:
                 stats['children_failed'] += 1

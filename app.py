@@ -180,7 +180,7 @@ def messages(conversation_id):
         messages_dict = {msg.id: msg for msg in all_messages}
         
         # Find root messages (messages with no parent)
-        root_messages = [msg for msg in all_messages if not msg.parent_id and msg.role == 'user']
+        root_messages = [msg for msg in all_messages if not msg.parent_id]
         
         # Sort root messages by creation time
         root_messages.sort(key=lambda x: x.create_time)
@@ -202,24 +202,47 @@ def messages(conversation_id):
                     chain.append(current)
                     processed_ids.add(current.id)
                 
-                # If there are children, follow the first child
-                if current.children:
-                    child_id = current.children[0]  # Take first child
-                    if child_id in messages_dict and child_id not in processed_ids:
-                        current = messages_dict[child_id]
-                        continue
+                # Look for the next message in the chain
+                next_message = None
                 
-                # No more valid children, break the chain
-                break
+                # First try to find a child that hasn't been processed
+                if current.children:
+                    for child_id in current.children:
+                        if child_id in messages_dict and child_id not in processed_ids:
+                            next_message = messages_dict[child_id]
+                            break
+                
+                # If no unprocessed child found, try to find a message that has this as parent
+                if not next_message:
+                    for msg in all_messages:
+                        if msg.parent_id == current.id and msg.id not in processed_ids:
+                            next_message = msg
+                            break
+                
+                if next_message:
+                    current = next_message
+                else:
+                    # No more messages to add to this chain
+                    break
             
-            # Only add chains that have at least a user message and a response
-            if len(chain) >= 2:
+            # Only add chains that have at least one message
+            if chain:
                 canonical_messages.extend(chain)
+        
+        # If no canonical messages were found, fall back to chronological order
+        if not canonical_messages:
+            canonical_messages = sorted(all_messages, key=lambda x: x.create_time)
+        
+        # Ensure we have messages to display
+        if not canonical_messages:
+            flash('No messages found in this conversation', 'warning')
+            return redirect('/')
         
         return render_template('messages.html',
                              conversation=conversation,
                              messages=canonical_messages,
-                             all_messages=all_messages)
+                             all_messages=all_messages,
+                             dev_view=True)  # Enable dev view by default for now
                              
     except Exception as e:
         app.logger.error(f"Error displaying messages for conversation {conversation_id}: {str(e)}")
@@ -258,13 +281,27 @@ def serve_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 def get_conversation(conversation_id):
-    """Get conversation details"""
+    """Get a conversation by ID."""
     db = get_db()
-    return db.execute(
-        "SELECT id, title, strftime('%Y-%m-%d %H:%M:%S', create_time, 'unixepoch') AS create_time "
-        "FROM conversations WHERE id = ?",
+    conversation = db.execute(
+        """
+        SELECT 
+            id, 
+            title, 
+            create_time,
+            update_time,
+            is_archived,
+            is_starred,
+            default_model_slug
+        FROM conversations 
+        WHERE id = ?
+        """,
         (conversation_id,)
     ).fetchone()
+    
+    if conversation:
+        return dict(conversation)
+    return None
 
 def get_messages(conversation_id):
     """Get messages for a conversation, properly threaded"""
@@ -487,51 +524,78 @@ def api_message_details(conversation_id, message_id):
         return jsonify({'error': str(e)}), 500
 
 def get_messages_for_conversation(conversation_id: str) -> List[Message]:
-    """Fetch all messages for a conversation and return them as a list of Message objects."""
-    messages = []
+    """Get all messages for a conversation with their relationships."""
     db = get_db()
     
-    # Get all messages with their metadata
-    cursor = db.execute('''
+    # Get all messages for the conversation
+    messages = db.execute("""
         SELECT 
             m.id,
             m.author_role as role,
             m.content,
             m.create_time,
             mm.parent_id,
-            mm.model_slug,
-            mm.finish_details,
-            mm.citations,
-            mm.content_references,
-            (SELECT GROUP_CONCAT(child_id) FROM message_children WHERE parent_id = m.id) as children
+            (
+                SELECT json_group_array(child_id)
+                FROM message_children mc
+                WHERE mc.parent_id = m.id
+            ) as children,
+            json_object(
+                'model', mm.model_slug,
+                'finish_details', mm.finish_details,
+                'citations', mm.citations,
+                'content_references', mm.content_references,
+                'message_type', mm.message_type,
+                'request_id', mm.request_id,
+                'message_source', mm.message_source,
+                'timestamp', mm.timestamp
+            ) as metadata
         FROM messages m
         LEFT JOIN message_metadata mm ON m.id = mm.id
         WHERE m.conversation_id = ?
+        AND m.author_role != 'system'
+        AND m.content IS NOT NULL
+        AND m.content != ''
+        GROUP BY m.id
         ORDER BY m.create_time ASC
-    ''', (conversation_id,))
-    
-    for row in cursor:
-        # Parse children from string to list
-        children = row['children'].split(',') if row['children'] else []
-        
+    """, (conversation_id,)).fetchall()
+
+    result = []
+    for msg in messages:
+        # Parse children array, removing null values that come from the LEFT JOIN
+        children_str = msg['children']
+        try:
+            children = json.loads(children_str) if children_str else []
+            children = [c for c in children if c is not None]
+        except json.JSONDecodeError:
+            children = []
+
+        # Parse metadata
+        try:
+            metadata = json.loads(msg['metadata']) if msg['metadata'] else {}
+            # Clean up null values and parse JSON strings
+            for key in ['finish_details', 'citations', 'content_references']:
+                if key in metadata and metadata[key]:
+                    try:
+                        metadata[key] = json.loads(metadata[key])
+                    except (json.JSONDecodeError, TypeError):
+                        metadata[key] = None
+        except json.JSONDecodeError:
+            metadata = {}
+
         # Create Message object
         message = Message(
-            id=row['id'],
-            role=row['role'],
-            content=row['content'],
-            create_time=row['create_time'] or 0,
-            parent_id=row['parent_id'],
+            id=msg['id'],
+            role=msg['role'],
+            content=msg['content'] or '',  # Handle NULL content
+            create_time=msg['create_time'],
+            parent_id=msg['parent_id'],
             children=children,
-            metadata={
-                'model': row['model_slug'],
-                'finish_details': json.loads(row['finish_details']) if row['finish_details'] else None,
-                'citations': json.loads(row['citations']) if row['citations'] else None,
-                'content_references': json.loads(row['content_references']) if row['content_references'] else None
-            }
+            metadata=metadata
         )
-        messages.append(message)
-    
-    return messages
+        result.append(message)
+
+    return result
 
 def find_root_messages(messages: Dict[str, Message]) -> Set[str]:
     """Find all messages that have no parent (root nodes)."""
