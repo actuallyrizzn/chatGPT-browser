@@ -329,134 +329,110 @@ def full_conversation(conversation_id):
     session['override_dev_mode'] = True
     return redirect(url_for('conversation', conversation_id=conversation_id))
 
+def _parse_timestamp(ts):
+    if ts is None:
+        return None
+    try:
+        if isinstance(ts, str):
+            return float(ts)
+        return ts
+    except (ValueError, TypeError):
+        return None
+
+def import_conversations_data(data):
+    """Import a list of conversation dicts into the database. Used by both web upload and CLI ingest."""
+    if not isinstance(data, list):
+        data = [data]
+    print(f"Importing {len(data)} conversations...")
+    conn = get_db()
+    for conversation in data:
+        try:
+            # Extract conversation data
+            conversation_id = conversation.get('id')
+            if not conversation_id:
+                print(f"Skipping conversation: missing ID")
+                continue
+            create_time = conversation.get('create_time', '')
+            update_time = conversation.get('update_time', '')
+            title = conversation.get('title', '')
+            # Insert conversation
+            conn.execute('''
+                INSERT OR REPLACE INTO conversations 
+                (id, create_time, update_time, title)
+                VALUES (?, ?, ?, ?)
+            ''', (conversation_id, create_time, update_time, title))
+            # Process messages
+            messages = conversation.get('mapping', {})
+            for message_id, message_data in messages.items():
+                try:
+                    message = message_data.get('message', {})
+                    if not message:
+                        continue
+                    author = message.get('author', {})
+                    content = message.get('content', {})
+                    role = author.get('role', '')
+                    content_text = json.dumps(content.get('parts', []))
+                    msg_create_time = _parse_timestamp(message.get('create_time'))
+                    msg_update_time = _parse_timestamp(message.get('update_time'))
+                    parent_id = message_data.get('parent', '')
+                    conn.execute('''
+                        INSERT OR REPLACE INTO messages
+                        (id, conversation_id, role, content, create_time, update_time, parent_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (message_id, conversation_id, role, content_text,
+                          msg_create_time, msg_update_time, parent_id))
+                    children = message_data.get('children', [])
+                    if children:
+                        conn.execute('DELETE FROM message_children WHERE parent_id = ?', (message_id,))
+                        for child_id in children:
+                            conn.execute('''
+                                INSERT INTO message_children (parent_id, child_id)
+                                VALUES (?, ?)
+                            ''', (message_id, child_id))
+                    metadata = message.get('metadata', {})
+                    if metadata:
+                        conn.execute('''
+                            INSERT OR REPLACE INTO message_metadata
+                            (message_id, message_type, model_slug, citations,
+                             content_references, finish_details, is_complete,
+                             request_id, timestamp_, message_source, serialization_metadata)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            message_id,
+                            metadata.get('message_type', ''),
+                            metadata.get('model_slug', ''),
+                            json.dumps(metadata.get('citations', [])),
+                            json.dumps(metadata.get('content_references', [])),
+                            json.dumps(metadata.get('finish_details', {})),
+                            metadata.get('is_complete', False),
+                            metadata.get('request_id', ''),
+                            metadata.get('timestamp', ''),
+                            metadata.get('message_source', ''),
+                            json.dumps(metadata.get('serialization_metadata', {}))
+                        ))
+                except Exception as e:
+                    print(f"Error processing message {message_id}: {str(e)}")
+                    continue
+        except Exception as e:
+            print(f"Error processing conversation {conversation_id}: {str(e)}")
+            continue
+    conn.commit()
+    conn.close()
+
 @app.route('/import', methods=['POST'])
 def import_json():
     if 'file' not in request.files:
         return 'No file uploaded', 400
-    
     file = request.files['file']
     if file.filename == '':
         return 'No file selected', 400
-        
     try:
         content = file.read()
         if not content:
             return 'Empty file', 400
-            
         data = json.loads(content)
-        if not isinstance(data, list):
-            data = [data]
-            
-        print(f"Importing {len(data)} conversations...")
-        
-        conn = get_db()
-        
-        for conversation in data:
-            try:
-                # Extract conversation data
-                conversation_id = conversation.get('id')
-                if not conversation_id:
-                    print(f"Skipping conversation: missing ID")
-                    continue
-                    
-                create_time = conversation.get('create_time', '')
-                update_time = conversation.get('update_time', '')
-                title = conversation.get('title', '')
-                
-                # Insert conversation
-                conn.execute('''
-                    INSERT OR REPLACE INTO conversations 
-                    (id, create_time, update_time, title)
-                    VALUES (?, ?, ?, ?)
-                ''', (conversation_id, create_time, update_time, title))
-                
-                # Process messages
-                messages = conversation.get('mapping', {})
-                for message_id, message_data in messages.items():
-                    try:
-                        message = message_data.get('message', {})
-                        if not message:
-                            continue
-                            
-                        author = message.get('author', {})
-                        content = message.get('content', {})
-                        
-                        # Extract message data
-                        role = author.get('role', '')
-                        content_text = json.dumps(content.get('parts', []))
-                        
-                        # Handle timestamps - convert to float if string, or use None if missing/invalid
-                        def parse_timestamp(ts):
-                            if ts is None:
-                                return None
-                            try:
-                                if isinstance(ts, str):
-                                    return float(ts)
-                                return ts
-                            except (ValueError, TypeError):
-                                return None
-                        
-                        msg_create_time = parse_timestamp(message.get('create_time'))
-                        msg_update_time = parse_timestamp(message.get('update_time'))
-                        
-                        # Get parent ID from message_data
-                        parent_id = message_data.get('parent', '')
-                        
-                        # Insert message
-                        conn.execute('''
-                            INSERT OR REPLACE INTO messages
-                            (id, conversation_id, role, content, create_time, update_time, parent_id)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (message_id, conversation_id, role, content_text, 
-                              msg_create_time, msg_update_time, parent_id))
-                        
-                        # Process children relationships
-                        children = message_data.get('children', [])
-                        if children:
-                            # First remove any existing relationships for this message
-                            conn.execute('DELETE FROM message_children WHERE parent_id = ?', (message_id,))
-                            # Then insert new relationships
-                            for child_id in children:
-                                conn.execute('''
-                                    INSERT INTO message_children (parent_id, child_id)
-                                    VALUES (?, ?)
-                                ''', (message_id, child_id))
-                        
-                        # Extract metadata if available
-                        metadata = message.get('metadata', {})
-                        if metadata:
-                            conn.execute('''
-                                INSERT OR REPLACE INTO message_metadata
-                                (message_id, message_type, model_slug, citations, 
-                                 content_references, finish_details, is_complete,
-                                 request_id, timestamp_, message_source, serialization_metadata)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (
-                                message_id,
-                                metadata.get('message_type', ''),
-                                metadata.get('model_slug', ''),
-                                json.dumps(metadata.get('citations', [])),
-                                json.dumps(metadata.get('content_references', [])),
-                                json.dumps(metadata.get('finish_details', {})),
-                                metadata.get('is_complete', False),
-                                metadata.get('request_id', ''),
-                                metadata.get('timestamp', ''),
-                                metadata.get('message_source', ''),
-                                json.dumps(metadata.get('serialization_metadata', {}))
-                            ))
-                            
-                    except Exception as e:
-                        print(f"Error processing message {message_id}: {str(e)}")
-                        continue
-                        
-            except Exception as e:
-                print(f"Error processing conversation {conversation_id}: {str(e)}")
-                continue
-                
-        conn.commit()
-        conn.close()
+        import_conversations_data(data)
         return redirect(url_for('index'))
-        
     except json.JSONDecodeError:
         return 'Invalid JSON file', 400
     except Exception as e:
