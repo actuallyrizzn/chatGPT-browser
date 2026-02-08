@@ -148,7 +148,7 @@
 
 <script>
 document.getElementById('verboseToggle')?.addEventListener('click', function() {
-    fetch('/toggle_verbose_mode?temp=true')
+    fetch('/toggle_verbose_mode?temp=true', { method: 'POST' })
         .then(response => response.json())
         .then(data => {
             if (data.success) {

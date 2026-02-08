@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.1] - 2026-02-08
+
+### Changed
+- **Toggle routes use POST only** (fixes #13): `/toggle_dark_mode`, `/toggle_view_mode`, `/toggle_verbose_mode` now accept only POST; GET returns 405. Navbar dark mode uses a POST form; settings and conversation pages use `fetch(..., { method: 'POST' })` for toggles to avoid prefetch/crawler-triggered state changes.
+
 ## [1.3.0] - 2026-02-08
 
 ### Added

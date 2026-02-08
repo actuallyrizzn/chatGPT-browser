@@ -403,21 +403,21 @@ def import_json():
     except Exception as e:
         return f'Error importing file: {str(e)}', 400
 
-@app.route('/toggle_view_mode')
+@app.route('/toggle_view_mode', methods=['POST'])
 def toggle_view_mode():
     current = get_setting('dev_mode', 'false')
     new_value = 'false' if current == 'true' else 'true'
     set_setting('dev_mode', new_value)
     return jsonify({'success': True, 'dev_mode': new_value == 'true'})
 
-@app.route('/toggle_dark_mode')
+@app.route('/toggle_dark_mode', methods=['POST'])
 def toggle_dark_mode():
     current_mode = get_setting('dark_mode', 'false')
     new_mode = 'true' if current_mode == 'false' else 'false'
     set_setting('dark_mode', new_mode)
     return redirect(request.referrer or url_for('index'))
 
-@app.route('/toggle_verbose_mode')
+@app.route('/toggle_verbose_mode', methods=['POST'])
 def toggle_verbose_mode():
     if request.args.get('temp') == 'true':
         session['override_verbose_mode'] = not session.get('override_verbose_mode', False)

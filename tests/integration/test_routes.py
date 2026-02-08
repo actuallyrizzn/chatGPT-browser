@@ -176,18 +176,26 @@ class TestSettingsRoutes:
 
 class TestToggleRoutes:
     def test_toggle_view_mode_returns_json(self, client_with_db):
-        r = client_with_db.get("/toggle_view_mode")
+        r = client_with_db.post("/toggle_view_mode")
         assert r.status_code == 200
         data = r.get_json()
         assert data["success"] is True
         assert "dev_mode" in data
 
+    def test_toggle_view_mode_get_405(self, client_with_db):
+        r = client_with_db.get("/toggle_view_mode")
+        assert r.status_code == 405
+
     def test_toggle_dark_mode_redirects(self, client_with_db):
-        r = client_with_db.get("/toggle_dark_mode", follow_redirects=False)
+        r = client_with_db.post("/toggle_dark_mode", follow_redirects=False)
         assert r.status_code in (302, 303)
 
+    def test_toggle_dark_mode_get_405(self, client_with_db):
+        r = client_with_db.get("/toggle_dark_mode")
+        assert r.status_code == 405
+
     def test_toggle_dark_mode_redirects_to_referrer(self, client_with_db):
-        r = client_with_db.get(
+        r = client_with_db.post(
             "/toggle_dark_mode",
             headers={"Referer": "http://localhost/settings"},
             follow_redirects=False,
@@ -196,17 +204,21 @@ class TestToggleRoutes:
         assert r.location == "http://localhost/settings" or "settings" in r.location
 
     def test_toggle_verbose_mode_permanent(self, client_with_db):
-        r = client_with_db.get("/toggle_verbose_mode")
+        r = client_with_db.post("/toggle_verbose_mode")
         assert r.status_code == 200
         data = r.get_json()
         assert data["success"] is True
         assert "verbose_mode" in data
 
     def test_toggle_verbose_mode_temp(self, client_with_db):
-        r = client_with_db.get("/toggle_verbose_mode?temp=true")
+        r = client_with_db.post("/toggle_verbose_mode?temp=true")
         assert r.status_code == 200
         data = r.get_json()
         assert data["success"] is True
+
+    def test_toggle_verbose_mode_get_405(self, client_with_db):
+        r = client_with_db.get("/toggle_verbose_mode")
+        assert r.status_code == 405
 
 
 class TestImportRoute:

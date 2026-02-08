@@ -18,13 +18,15 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('toggle_dark_mode') }}">
-                            {% if dark_mode %}
-                                <i class="bi bi-sun"></i> Light Mode
-                            {% else %}
-                                <i class="bi bi-moon"></i> Dark Mode
-                            {% endif %}
-                        </a>
+                        <form method="POST" action="{{ url_for('toggle_dark_mode') }}" class="d-inline">
+                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0">
+                                {% if dark_mode %}
+                                    <i class="bi bi-sun"></i> Light Mode
+                                {% else %}
+                                    <i class="bi bi-moon"></i> Dark Mode
+                                {% endif %}
+                            </button>
+                        </form>
                     </li>
                     <li class="nav-item">
                         <span class="nav-link">

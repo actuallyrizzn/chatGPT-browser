@@ -92,7 +92,7 @@ document.getElementById('view_mode').addEventListener('change', function() {
         verboseToggle.disabled = true;
         verboseToggle.checked = false;
         // Turn off verbose mode in backend
-        fetch('/toggle_verbose_mode')
+        fetch('/toggle_verbose_mode', { method: 'POST' })
             .then(response => response.json());
     } else {
         niceLabel.classList.add('d-none');
@@ -114,7 +114,7 @@ document.getElementById('view_mode').addEventListener('change', function() {
 
 document.getElementById('verbose_mode').addEventListener('change', function() {
     if (!document.getElementById('view_mode').checked) {  // Only allow toggle in dev mode
-        fetch('/toggle_verbose_mode')
+        fetch('/toggle_verbose_mode', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
