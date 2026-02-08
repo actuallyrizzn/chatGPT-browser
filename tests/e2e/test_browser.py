@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser tests - See LICENSE (AGPL-3.0).
 """E2E tests using Playwright. Require: pip install -r requirements-testing.txt && playwright install."""
 
 import pytest

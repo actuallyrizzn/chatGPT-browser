@@ -8,21 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive documentation suite
-- Installation guide for multiple operating systems
-- User guide with detailed usage instructions
-- Contributing guidelines for developers
-- API reference documentation
-- Database schema documentation
+- (None)
 
 ### Changed
-- Enhanced main README with better structure and information
-- Improved project documentation organization
-- Updated installation instructions for clarity
+- (None)
 
 ### Fixed
-- Documentation links and cross-references
-- Installation instructions for Windows users
+- (None)
+
+## [1.3.0] - 2026-02-08
+
+### Added
+- **SECRET_KEY** config: load from `SECRET_KEY` env, else `.secret_key` file beside `app.py`, else random with warning (fixes #1, #7)
+- **Markdown XSS sanitization**: bleach-based sanitization of markdown output; allowed tags/attrs whitelist (fixes #2, #8)
+- **Per-call Markdown instance**: new `markdown.Markdown()` per filter call to avoid shared state bleed (fixes #3, #9)
+- **Upload size limit**: `MAX_CONTENT_LENGTH` from env `MAX_UPLOAD_MB` (default 100 MB); 413 handler (fixes #6, #12)
+- **Import form**: settings import accepts `file` or `json_file`; template uses `name="file"` (fixes #5, #11)
+- Unit test for markdown XSS (script tags stripped)
+- Dependency: `bleach==6.1.0` for HTML sanitization
+
+### Changed
+- Jinja filters `fromjson`/`tojson`: bare `except` replaced with explicit `(TypeError, ValueError, json.JSONDecodeError)` (fixes #22)
+
+### Fixed
+- (Security/behavior items listed under Added above)
 
 ## [1.2.0] - 2024-01-15
 

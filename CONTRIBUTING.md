@@ -14,6 +14,7 @@ Thank you for your interest in contributing to ChatGPT Browser! This guide will 
 8. [Documentation](#documentation)
 9. [Code Review Process](#code-review-process)
 10. [Release Process](#release-process)
+11. [License](#license)
 
 ## Getting Started
 
@@ -626,6 +627,13 @@ We use [Semantic Versioning](https://semver.org/):
 - Database connection timeout issue
 - Memory leak in large conversations
 ```
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the same terms as the project:
+
+- **Code contributions**: GNU Affero General Public License v3.0 (AGPL-3.0). See [LICENSE](LICENSE).
+- **Documentation and non-code contributions**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA 4.0). See [LICENSES/DOCUMENTATION](LICENSES/DOCUMENTATION) and [NOTICE](NOTICE).
 
 ## Getting Help
 

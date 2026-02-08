@@ -1,5 +1,9 @@
 # ChatGPT Browser - Documentation
 
+**License notice:** Documentation and other non-code materials in this repository (including this file and the contents of `docs/`) are licensed under the **Creative Commons Attribution-ShareAlike 4.0 International License (CC-BY-SA 4.0)**. Full text: [../LICENSES/CC-BY-SA-4.0.txt](../LICENSES/CC-BY-SA-4.0.txt). You must give appropriate credit and share adaptations under the same license.
+
+---
+
 Welcome to the comprehensive documentation for the ChatGPT Browser application. This documentation suite provides detailed information about the codebase, architecture, implementation details, and user guides.
 
 ## 📚 Documentation Structure
@@ -72,6 +76,33 @@ Welcome to the comprehensive documentation for the ChatGPT Browser application. 
 - **Backup and Recovery**: Database maintenance procedures
 - **Performance Considerations**: Optimization strategies
 - **Migration Strategy**: Schema change management
+
+### 🧪 Testing and quality
+
+#### [TESTING.md](./TESTING.md)
+**How to run the test suite**
+
+- Setup (venv, requirements-testing.txt)
+- Running unit, integration, and E2E tests
+- Coverage and pytest options
+
+### 📋 Reference and audit
+
+#### [API_REFERENCE.md](./API_REFERENCE.md)
+**Endpoint reference** — All HTTP endpoints, request/response formats, and examples.
+
+#### [CODE_AUDIT.md](./CODE_AUDIT.md)
+**Code audit** — Findings, severity, and suggested fixes from the codebase audit.
+
+#### [ISSUE_COVERAGE.md](./ISSUE_COVERAGE.md)
+**Issue coverage** — Mapping of audit items to GitHub issues.
+
+#### [UX_UI_REVIEW.md](./UX_UI_REVIEW.md)
+**UX/UI review** — Interface and usability notes.
+
+### 📄 License for documentation
+
+- [LICENSE-DOCS.md](./LICENSE-DOCS.md) — **CC-BY-SA 4.0** applies to all docs and non-code materials.
 
 ## 📖 Quick Start Guide
 

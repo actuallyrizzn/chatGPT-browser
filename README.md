@@ -286,17 +286,12 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ## 📄 License
 
-This project is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC-BY-SA 4.0).
+**Dual licensing — conspicuous notice:**
 
-**You are free to**:
-- Share — copy and redistribute the material in any medium or format
-- Adapt — remix, transform, and build upon the material for any purpose, even commercially
+- **Source code** (application and tests): Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for the full text. You may use, modify, and distribute the code under the same license; if you run a modified version as a network service, you must offer the corresponding source to users.
+- **Documentation and other non-code materials** (e.g. `docs/`, README text, screenshots): Licensed under **Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA 4.0)**. See [LICENSES/CC-BY-SA-4.0.txt](LICENSES/CC-BY-SA-4.0.txt) and [LICENSES/DOCUMENTATION](LICENSES/DOCUMENTATION). Summary: https://creativecommons.org/licenses/by-sa/4.0/
 
-**Under the following terms**:
-- Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made
-- ShareAlike — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original
-
-For more information, visit: https://creativecommons.org/licenses/by-sa/4.0/
+A short notice for both licenses is in [NOTICE](NOTICE). Details: [LICENSES/README.md](LICENSES/README.md).
 
 ## 📞 Support
 

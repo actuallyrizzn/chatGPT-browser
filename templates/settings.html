@@ -51,8 +51,8 @@
             <div class="card-body">
                 <form action="{{ url_for('import_json') }}" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label for="json_file" class="form-label">Choose JSON File</label>
-                        <input type="file" class="form-control" id="json_file" name="json_file" accept=".json">
+                        <label for="import_file" class="form-label">Choose JSON File</label>
+                        <input type="file" class="form-control" id="import_file" name="file" accept=".json">
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Import JSON</button>

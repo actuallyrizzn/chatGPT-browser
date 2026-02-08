@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser tests - See LICENSE (AGPL-3.0).
 """Integration tests for Flask routes with test database."""
 
 import io

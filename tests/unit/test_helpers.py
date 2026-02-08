@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser tests - See LICENSE (AGPL-3.0).
 """Unit tests for app helper functions: get_setting, set_setting, _parse_timestamp."""
 
 import pytest

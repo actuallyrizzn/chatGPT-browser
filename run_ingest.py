@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser - https://github.com/actuallyrizzn/chatGPT-browser
+# Copyright (C) 2024-2025. Licensed under the GNU AGPLv3. See LICENSE.
 """CLI ingest: load conversations from a JSON file (e.g. from an extracted ChatGPT export zip)."""
 import argparse
 import json

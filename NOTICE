@@ -1,0 +1,22 @@
+ChatGPT Browser
+https://github.com/actuallyrizzn/chatGPT-browser
+
+--------------------------------------------------------------------------------
+LICENSING (conspicuous notice)
+--------------------------------------------------------------------------------
+
+  * SOURCE CODE (e.g. Python files, schema.sql, application templates and
+    static assets): Licensed under the GNU Affero General Public License
+    v3.0 (AGPL-3.0). See the file LICENSE in this repository for the full
+    license text. You must retain this notice and the license when
+    distributing or modifying the code.
+
+  * DOCUMENTATION AND OTHER NON-CODE MATERIALS (e.g. docs/, README files,
+    screenshots, written guides): Licensed under the Creative Commons
+    Attribution-ShareAlike 4.0 International License (CC-BY-SA 4.0). Full
+    text: LICENSES/CC-BY-SA-4.0.txt. Summary: https://creativecommons.org/licenses/by-sa/4.0/
+
+  * If you are unsure which license applies to a file, see LICENSES/README.md
+    or the license notices at the top of source files and in docs/README.md.
+
+--------------------------------------------------------------------------------

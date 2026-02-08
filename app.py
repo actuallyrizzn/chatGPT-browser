@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser - https://github.com/actuallyrizzn/chatGPT-browser
+# Copyright (C) 2024-2025. Licensed under the GNU AGPLv3. See LICENSE.
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from markupsafe import Markup
 import sqlite3
@@ -8,24 +11,48 @@ from markdown.extensions import fenced_code, tables
 import os
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Required for session management
 
-# Initialize markdown with extensions
-md = markdown.Markdown(extensions=['fenced_code', 'tables'])
+# Secret key: prefer SECRET_KEY env, then .secret_key file, else urandom (sessions invalidated on restart)
+def _load_secret_key():
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key.encode("utf-8") if isinstance(key, str) else key
+    secret_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".secret_key")
+    if os.path.isfile(secret_file):
+        with open(secret_file, "rb") as f:
+            return f.read().strip()
+    import warnings
+    warnings.warn("SECRET_KEY not set; using random key. Sessions will be invalidated on restart. Set SECRET_KEY or create .secret_key.", UserWarning)
+    return os.urandom(24)
+
+app.secret_key = _load_secret_key()
+
+# Limit request body size (e.g. import JSON) to avoid DoS; 100 MB default, overridable via env
+app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "100")) * 1024 * 1024
+
+from werkzeug.exceptions import RequestEntityTooLarge
+@app.errorhandler(RequestEntityTooLarge)
+def handle_413(e):
+    return "Upload exceeds maximum allowed size (set MAX_UPLOAD_MB env to change limit).", 413
+
+# Markdown: fresh instance per render to avoid state bleed; output sanitized to prevent XSS
+import bleach
+ALLOWED_MD_TAGS = ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'code', 'pre', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'span', 'div', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td']
+ALLOWED_MD_ATTRS = {'a': ['href', 'title']}
 
 # Add Jinja filters
 @app.template_filter('fromjson')
 def fromjson(value):
     try:
         return json.loads(value)
-    except:
+    except (TypeError, ValueError, json.JSONDecodeError):
         return []
 
 @app.template_filter('tojson')
 def tojson(value, indent=None):
     try:
         return json.dumps(value, indent=indent)
-    except:
+    except (TypeError, ValueError):
         return str(value)
 
 def get_db():
@@ -77,7 +104,12 @@ def json_loads_filter(value):
 def markdown_filter(text):
     if text is None:
         return ""
-    return Markup(md.convert(text))
+    # New Markdown instance per call to avoid shared state bleed between messages
+    md_instance = markdown.Markdown(extensions=['fenced_code', 'tables'])
+    raw_html = md_instance.convert(text)
+    # Sanitize to prevent stored XSS (e.g. <script>, event handlers)
+    safe_html = bleach.clean(raw_html, tags=ALLOWED_MD_TAGS, attributes=ALLOWED_MD_ATTRS, strip=True)
+    return Markup(safe_html)
 
 @app.route('/')
 def index():
@@ -353,9 +385,10 @@ def import_conversations_data(data):
 
 @app.route('/import', methods=['POST'])
 def import_json():
-    if 'file' not in request.files:
+    # Accept both 'file' and 'json_file' for compatibility with different form names
+    file = request.files.get('file') or request.files.get('json_file')
+    if not file:
         return 'No file uploaded', 400
-    file = request.files['file']
     if file.filename == '':
         return 'No file selected', 400
     try:

@@ -1,6 +1,6 @@
--- Single source of truth for ChatGPT Browser schema.
--- Executed by app.init_db() on first run and by init_db.py.
--- conversations.id is TEXT (ChatGPT export IDs).
+-- SPDX-License-Identifier: AGPL-3.0-only
+-- ChatGPT Browser - https://github.com/actuallyrizzn/chatGPT-browser
+-- Single source of truth for schema. Executed by app.init_db(). conversations.id is TEXT.
 
 CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,

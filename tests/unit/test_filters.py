@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser tests - See LICENSE (AGPL-3.0).
 """Unit tests for Jinja template filters and app helpers used in templates."""
 
 import json
@@ -93,3 +95,10 @@ class TestMarkdownFilter:
     def test_plain_text(self):
         result = app_module.markdown_filter("plain text")
         assert "plain text" in result
+
+    def test_xss_script_stripped(self):
+        """Markdown output is sanitized; script tags must not appear (XSS prevention)."""
+        result = app_module.markdown_filter("<script>alert(1)</script>")
+        assert "<script" not in result and "script>" not in result
+        result2 = app_module.markdown_filter("Hello\n\n<script>evil()</script>")
+        assert "<script" not in result2 and "</script>" not in result2

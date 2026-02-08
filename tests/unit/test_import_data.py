@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# ChatGPT Browser tests - See LICENSE (AGPL-3.0).
 """Unit tests for import_conversations_data and init_db."""
 
 import pytest
