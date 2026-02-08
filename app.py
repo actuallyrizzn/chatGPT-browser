@@ -34,79 +34,11 @@ def get_db():
     return conn
 
 def init_db():
+    """Create schema and defaults. Uses schema.sql as single source of truth."""
     conn = get_db()
-    
-    # Create conversations table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS conversations (
-            id TEXT PRIMARY KEY,
-            create_time TEXT,
-            update_time TEXT,
-            title TEXT
-        )
-    ''')
-    
-    # Create messages table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS messages (
-            id TEXT PRIMARY KEY,
-            conversation_id TEXT,
-            role TEXT,
-            content TEXT,
-            create_time TEXT,
-            update_time TEXT,
-            parent_id TEXT,
-            FOREIGN KEY (conversation_id) REFERENCES conversations(id)
-        )
-    ''')
-    
-    # Create message metadata table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS message_metadata (
-            message_id TEXT PRIMARY KEY,
-            message_type TEXT,
-            model_slug TEXT,
-            citations TEXT,
-            content_references TEXT,
-            finish_details TEXT,
-            is_complete BOOLEAN,
-            request_id TEXT,
-            timestamp_ TEXT,
-            message_source TEXT,
-            serialization_metadata TEXT,
-            FOREIGN KEY (message_id) REFERENCES messages(id)
-        )
-    ''')
-    
-    # Create message children relationships table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS message_children (
-            parent_id TEXT,
-            child_id TEXT,
-            PRIMARY KEY (parent_id, child_id),
-            FOREIGN KEY (parent_id) REFERENCES messages(id),
-            FOREIGN KEY (child_id) REFERENCES messages(id)
-        )
-    ''')
-    
-    # Create settings table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    ''')
-    
-    # Insert default settings if they don't exist
-    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('user_name', 'User'))
-    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('assistant_name', 'Assistant'))
-    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('dev_mode', 'false'))  # false = nice mode, true = dev mode
-    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('dark_mode', 'false'))
-    conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ('verbose_mode', 'false'))
-    
-    # Clean up any old settings that are no longer used
-    conn.execute('DELETE FROM settings WHERE key = ?', ('nice_mode',))
-    
+    schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema.sql')
+    with open(schema_path, encoding='utf-8') as f:
+        conn.executescript(f.read())
     conn.commit()
     conn.close()
 

@@ -1,46 +1,33 @@
--- Create conversations table
+-- Single source of truth for ChatGPT Browser schema.
+-- Executed by app.init_db() on first run and by init_db.py.
+-- conversations.id is TEXT (ChatGPT export IDs).
+
 CREATE TABLE IF NOT EXISTS conversations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    update_time TIMESTAMP,
-    voice TEXT,
-    plugin_ids TEXT,
-    safe_urls TEXT,
-    moderation_results TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id TEXT PRIMARY KEY,
+    create_time TEXT,
+    update_time TEXT,
+    title TEXT
 );
 
--- Create messages table
 CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
-    conversation_id INTEGER,
-    author_name TEXT,
-    author_role TEXT,
-    author_metadata TEXT,
-    content_type TEXT,
-    content_parts TEXT,
-    create_time TIMESTAMP,
-    update_time TIMESTAMP,
-    status TEXT,
-    channel TEXT,
-    weight REAL,
-    end_turn BOOLEAN,
+    conversation_id TEXT,
+    role TEXT,
+    content TEXT,
+    create_time TEXT,
+    update_time TEXT,
     parent_id TEXT,
-    FOREIGN KEY (conversation_id) REFERENCES conversations(id),
-    FOREIGN KEY (parent_id) REFERENCES messages(id)
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
--- Create message metadata table
 CREATE TABLE IF NOT EXISTS message_metadata (
     message_id TEXT PRIMARY KEY,
-    citations TEXT,
-    content_references TEXT,
-    default_model_slug TEXT,
-    finish_details TEXT,
-    is_complete BOOLEAN,
     message_type TEXT,
     model_slug TEXT,
-    parent_id TEXT,
+    citations TEXT,
+    content_references TEXT,
+    finish_details TEXT,
+    is_complete BOOLEAN,
     request_id TEXT,
     timestamp_ TEXT,
     message_source TEXT,
@@ -48,7 +35,6 @@ CREATE TABLE IF NOT EXISTS message_metadata (
     FOREIGN KEY (message_id) REFERENCES messages(id)
 );
 
--- Create message children relationships table
 CREATE TABLE IF NOT EXISTS message_children (
     parent_id TEXT,
     child_id TEXT,
@@ -57,24 +43,15 @@ CREATE TABLE IF NOT EXISTS message_children (
     FOREIGN KEY (child_id) REFERENCES messages(id)
 );
 
--- Create settings table
 CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key TEXT UNIQUE NOT NULL,
-    value TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 
--- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
-CREATE INDEX IF NOT EXISTS idx_message_children_parent_id ON message_children(parent_id);
-CREATE INDEX IF NOT EXISTS idx_message_children_child_id ON message_children(child_id);
+INSERT OR IGNORE INTO settings (key, value) VALUES ('user_name', 'User');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('assistant_name', 'Assistant');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('dev_mode', 'false');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('dark_mode', 'false');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('verbose_mode', 'false');
 
--- Insert default settings
-INSERT OR IGNORE INTO settings (key, value) VALUES 
-    ('dev_mode', 'false'),
-    ('dark_mode', 'false'),
-    ('user_name', 'You'),
-    ('assistant_name', 'Assistant'); 
+DELETE FROM settings WHERE key = 'nice_mode';
