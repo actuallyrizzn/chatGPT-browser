@@ -427,6 +427,10 @@ message_feedback.json
 model_comparisons.json
 conversations.json
 chatgpt.db
+__pycache__/
+*.pyc
+.coverage
+htmlcov/
 *.json
 *.db
 db/
