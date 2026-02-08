@@ -1,0 +1,16 @@
+# Test dependencies for ChatGPT Browser
+# Install with: pip install -r requirements-testing.txt
+# Use with project venv: .\venv\Scripts\activate then pip install -r requirements-testing.txt
+
+# Unit & integration testing
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-xdist==3.3.1
+pytest-mock==3.12.0
+
+# E2E testing (browser)
+pytest-playwright==0.4.3
+playwright==1.40.0
+
+# HTTP client for integration tests
+httpx==0.25.2
