@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Navbar desktop** (fixes #62): Media query at 992px forces navbar-collapse to display so nav is visible on desktop.
 - **Accessibility** (fixes #63): Skip-to-main-content link (visible on focus), main landmark with id=main-content, aria-labels on nav toggles and buttons.
 - **Database path** (fixes #20): DB path is BASE_DIR/chatgpt.db or DATABASE_PATH env; init_db uses same path. Documented for deployments.
+- **init_db safety** (fixes #26): init_db.py refuses to run if DB exists unless --force (or --reset) is given; prevents accidental data loss.
 
 ## [1.3.6] - 2026-02-08
 
