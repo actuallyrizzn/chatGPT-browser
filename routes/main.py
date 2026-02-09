@@ -4,6 +4,7 @@
 """Main routes: index, conversations, import, settings, toggles."""
 
 import json
+from datetime import datetime, timezone
 
 from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
 
@@ -435,30 +436,88 @@ def toggle_verbose_mode():
     return jsonify({'success': True, 'verbose_mode': new_value == 'true'})
 
 
+def _week_rows_to_labels(rows):
+    """Convert (week_key, cnt) rows to list of dicts with week_label (YYYY-MM-DD) and cnt."""
+    out = []
+    for row in rows:
+        week_start = datetime.fromtimestamp(row['week_key'] * 604800, tz=timezone.utc)
+        out.append({'week_label': week_start.strftime('%Y-%m-%d'), 'cnt': row['cnt']})
+    return out
+
+
 @bp.route('/stats')
 def stats():
-    """Conversation statistics dashboard (#58)."""
+    """Conversation statistics dashboard (#58). Expanded: activity span, full by-week history."""
     conn = db.get_db()
     total_conversations = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
     total_messages = conn.execute('SELECT COUNT(*) FROM messages').fetchone()[0]
     avg_messages = (total_messages / total_conversations) if total_conversations else 0
-    # Conversations per week (by update_time as Unix week)
-    by_week = conn.execute('''
-        SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
-               COUNT(*) AS cnt
+
+    # Activity span (first/last conversation update_time)
+    span = conn.execute('''
+        SELECT MIN(CAST(update_time AS REAL)) AS first_ts,
+               MAX(CAST(update_time AS REAL)) AS last_ts
         FROM conversations
         WHERE update_time IS NOT NULL AND update_time != ''
-        GROUP BY week_key
-        ORDER BY week_key DESC
-        LIMIT 20
-    ''').fetchall()
+    ''').fetchone()
+    first_activity_utc = datetime.fromtimestamp(span['first_ts'], tz=timezone.utc).strftime('%Y-%m-%d') if span and span['first_ts'] else None
+    last_activity_utc = datetime.fromtimestamp(span['last_ts'], tz=timezone.utc).strftime('%Y-%m-%d') if span and span['last_ts'] else None
+
+    # Total distinct weeks with activity (for "full history" link)
+    total_weeks_row = conn.execute('''
+        SELECT COUNT(DISTINCT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER)) AS n
+        FROM conversations
+        WHERE update_time IS NOT NULL AND update_time != ''
+    ''').fetchone()
+    total_weeks = total_weeks_row['n'] if total_weeks_row else 0
+
+    # Conversations per week: either last 20 (preview) or full paginated
+    show_all_weeks = request.args.get('weeks') == 'all'
+    by_week_page = max(int(request.args.get('by_week_page', 1)), 1)
+    by_week_per_page = min(max(int(request.args.get('per_page', 50)), 10), 200)
+
+    if show_all_weeks:
+        offset = (by_week_page - 1) * by_week_per_page
+        by_week_rows = conn.execute('''
+            SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
+                   COUNT(*) AS cnt
+            FROM conversations
+            WHERE update_time IS NOT NULL AND update_time != ''
+            GROUP BY week_key
+            ORDER BY week_key DESC
+            LIMIT ? OFFSET ?
+        ''', (by_week_per_page, offset)).fetchall()
+        by_week = _week_rows_to_labels(by_week_rows)
+        by_week_pages_total = (total_weeks + by_week_per_page - 1) // by_week_per_page if total_weeks else 1
+    else:
+        by_week_rows = conn.execute('''
+            SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
+                   COUNT(*) AS cnt
+            FROM conversations
+            WHERE update_time IS NOT NULL AND update_time != ''
+            GROUP BY week_key
+            ORDER BY week_key DESC
+            LIMIT 20
+        ''').fetchall()
+        by_week = _week_rows_to_labels(by_week_rows)
+        by_week_page = 1
+        by_week_per_page = 20
+        by_week_pages_total = 1
+
     dev_mode = db.get_setting('dev_mode', 'false') == 'true'
     dark_mode = db.get_setting('dark_mode', 'false') == 'true'
     return render_template('stats.html',
                          total_conversations=total_conversations,
                          total_messages=total_messages,
                          avg_messages=avg_messages,
+                         first_activity_utc=first_activity_utc,
+                         last_activity_utc=last_activity_utc,
+                         total_weeks=total_weeks,
                          by_week=by_week,
+                         show_all_weeks=show_all_weeks,
+                         by_week_page=by_week_page,
+                         by_week_per_page=by_week_per_page,
+                         by_week_pages_total=by_week_pages_total,
                          dev_mode=dev_mode,
                          dark_mode=dark_mode)
 
