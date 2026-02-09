@@ -436,3 +436,14 @@ htmlcov/
 db/
 chat.html
 5f7aa3206d9565d9e19650e91e4d6e9607c323ae664837ba62e67404857568c4-2026-02-02-22-08-12-511e36e7d1cf42a9aee366f746f9bb41.zip
+__pycache__/app.cpython-313.pyc
+__pycache__/init_db.cpython-313.pyc
+__pycache__/run_ingest.cpython-313.pyc
+__pycache__/app.cpython-313.pyc
+__pycache__/init_db.cpython-313.pyc
+__pycache__/run_ingest.cpython-313.pyc
+tests/unit/__pycache__/test_filters.cpython-313-pytest-8.4.2.pyc
+tests/unit/__pycache__/test_helpers.cpython-313-pytest-8.4.2.pyc
+tests/unit/__pycache__/test_import_data.cpython-313-pytest-8.4.2.pyc
+tests/unit/__pycache__/test_init_db_main.cpython-313-pytest-8.4.2.pyc
+tests/unit/__pycache__/test_run_ingest.cpython-313-pytest-8.4.2.pyc

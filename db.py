@@ -121,6 +121,9 @@ def import_conversations_data(data):
                 VALUES (?, ?, ?, ?)
             ''', (conversation_id, create_time, update_time, title))
             messages = conversation.get('mapping', {})
+            inserted_message_ids = set()
+            # Pass 1: insert all messages so every id exists before we add message_children
+            # (message_children FK requires both parent_id and child_id to exist in messages)
             for message_id, message_data in messages.items():
                 try:
                     message = message_data.get('message', {})
@@ -139,14 +142,7 @@ def import_conversations_data(data):
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (message_id, conversation_id, role, content_text,
                           msg_create_time, msg_update_time, parent_id))
-                    children = message_data.get('children', [])
-                    if children:
-                        conn.execute('DELETE FROM message_children WHERE parent_id = ?', (message_id,))
-                        for child_id in children:
-                            conn.execute('''
-                                INSERT INTO message_children (parent_id, child_id)
-                                VALUES (?, ?)
-                            ''', (message_id, child_id))
+                    inserted_message_ids.add(message_id)
                     metadata = message.get('metadata', {})
                     if metadata:
                         conn.execute('''
@@ -170,6 +166,25 @@ def import_conversations_data(data):
                         ))
                 except Exception as e:
                     print(f"Error processing message {message_id}: {str(e)}")
+                    continue
+            # Pass 2: insert message_children only where both parent and child were inserted
+            for message_id, message_data in messages.items():
+                if message_id not in inserted_message_ids:
+                    continue
+                try:
+                    children = message_data.get('children', [])
+                    if not children:
+                        continue
+                    conn.execute('DELETE FROM message_children WHERE parent_id = ?', (message_id,))
+                    for child_id in children:
+                        if child_id not in inserted_message_ids:
+                            continue
+                        conn.execute('''
+                            INSERT INTO message_children (parent_id, child_id)
+                            VALUES (?, ?)
+                        ''', (message_id, child_id))
+                except Exception as e:
+                    print(f"Error processing message_children for {message_id}: {str(e)}")
                     continue
             imported += 1
             if imported % IMPORT_BATCH_SIZE == 0:

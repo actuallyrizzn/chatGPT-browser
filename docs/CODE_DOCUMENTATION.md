@@ -10,7 +10,7 @@
 6. [Templates and Frontend](#templates-and-frontend)
 7. [Static Assets](#static-assets)
 8. [API Endpoints](#api-endpoints)
-9. [Data Import System](#data-import-system)
+9. [Data Import System](#data-import-system) — including [What we exclude (for nerds)](#what-we-exclude-for-nerds)
 10. [Settings Management](#settings-management)
 11. [View Modes](#view-modes)
 12. [Error Handling](#error-handling)
@@ -447,6 +447,46 @@ The import system expects ChatGPT's JSON export format:
 - **Conversation Processing**: Skips conversations with missing IDs
 - **Message Processing**: Continues processing even if individual messages fail
 - **Database Transactions**: Uses transactions for data consistency
+
+### What we exclude (for nerds)
+
+This section is for anyone who cares exactly what data the importer does *not* store.
+
+**1. Other files in the export**
+
+Only `conversations.json` is read. Everything else in the ChatGPT export zip is ignored: `chat.html`, `group_chats.json`, `message_feedback.json`, `shared_conversations.json`, `shopping.json`, `user.json`. So group chats, feedback, shared conversations, and user profile are not imported.
+
+**2. Whole conversations**
+
+Any conversation with a missing or empty `id` is skipped (logged as "Skipping conversation: missing ID").
+
+**3. Messages**
+
+Any mapping entry whose `message` is missing or an empty dict is skipped. That message is never inserted and its id is not added to the set of "inserted" ids for that conversation.
+
+**4. Message content**
+
+Only `content.parts` is stored (as JSON). Other keys on `content` in the export are not persisted.
+
+**5. Metadata**
+
+Only a fixed set of metadata fields is stored: `message_type`, `model_slug`, `citations`, `content_references`, `finish_details`, `is_complete`, `request_id`, `timestamp`, `message_source`, `serialization_metadata`. Any other metadata keys are dropped.
+
+**6. Parent–child links (`message_children`)**
+
+We insert a row `(parent_id, child_id)` only when *both* the parent and the child message were successfully inserted for that conversation. We skip a link when:
+
+- The **child** was not inserted (e.g. no `message` key, or exception during insert) — we don't add that child link.
+- The **parent** was not inserted — we skip the entire block of children for that parent, so no links from that parent are added.
+
+Sampling real export data shows:
+
+- **Excluded "child" links** (parent inserted, child not): In practice **0** in sampled conversations. We are not dropping links because the child message was missing.
+- **Excluded "parent" blocks**: Typically **one per conversation**. These are mapping entries that have a `children` array but **no `message` key** (or an empty message). They are structural/synthetic nodes, for example:
+  - **`client-created-root`** — synthetic root; no content; its single child is the real first message of the thread (which we do import).
+  - **Other UUIDs with no `message`** — branch/structure-only nodes in the export with no displayable content.
+
+So the only excluded links are from these synthetic nodes to real messages. We do **not** lose any user or assistant content. The app's canonical path walks `parent_id` on `messages` (leaf → root), not the children table, so display and threading still work. The script `scripts/sample_excluded_children.py` can be run against your export to reproduce these counts and sample excluded entries (set `MAX_CONV` and `MAX_SAMPLES` if needed).
 
 ## Settings Management
 
