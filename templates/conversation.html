@@ -33,8 +33,8 @@
             </div>
 
             <div class="message-content">
-                {% if message.content %}
-                    {% for part in message.content|fromjson %}
+                {% if message.content_parts %}
+                    {% for part in message.content_parts %}
                         {% if part is not none and (part is not string or (part|trim)) %}
                             {% if part is string %}
                                 {{ part|markdown|safe }}

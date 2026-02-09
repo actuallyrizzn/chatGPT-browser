@@ -207,7 +207,8 @@ def conversation(conversation_id):
     ''', (conversation_id,)).fetchall()
     
     message_list = [message_row_to_dict(msg) for msg in messages]
-    
+    _attach_content_parts(message_list)
+
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
     user_name = get_setting('user_name', 'User')
@@ -266,6 +267,7 @@ def nice_conversation(conversation_id):
         SELECT * FROM path
     ''', (endpoint_id,)).fetchall()
     path = [message_row_to_dict(message) for message in path_rows]
+    _attach_content_parts(path)
 
     # In Nice view, hide system messages and messages with no displayable content
     path = [m for m in path if m.get('role') != 'system' and _message_has_displayable_content(m)]
@@ -312,7 +314,9 @@ def _parse_timestamp(ts):
 
 def _message_has_displayable_content(message):
     """True if message has at least one non-empty part (for hiding empty/system bubbles in Nice view)."""
-    content = message.get('content')
+    content = message.get('content_parts')
+    if content is None:
+        content = message.get('content')
     if content is None:
         return False
     if isinstance(content, str):
@@ -348,6 +352,14 @@ def message_row_to_dict(row):
             'serialization_metadata': d.pop('serialization_metadata', None),
         }
     return d
+
+def _attach_content_parts(message_list):
+    """Parse each message's content JSON once and attach as content_parts (fixes #31)."""
+    for m in message_list:
+        try:
+            m['content_parts'] = json.loads(m['content']) if m.get('content') else []
+        except (TypeError, ValueError, json.JSONDecodeError):
+            m['content_parts'] = []
 
 IMPORT_BATCH_SIZE = 50  # Commit every N conversations for partial progress and lower memory use
 

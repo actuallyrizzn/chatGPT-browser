@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Import batch commits** (fixes #18): import_conversations_data commits every IMPORT_BATCH_SIZE (50) conversations and at end; progress printed to stderr. Partial progress persisted if process fails.
 - **Canonical path N+1** (fixes #23): Nice conversation view now uses a single recursive CTE to load the full leaf-to-root path (no conversation_id in recursion so branches work); replaces per-message loop.
 - **Message metadata helper** (fixes #25): Extracted `message_row_to_dict()` for message row → dict with nested metadata; used in conversation() and nice_conversation() to remove duplication.
+- **JSON parsed once** (fixes #31): Message content is parsed in the route via `_attach_content_parts()`; templates use `message.content_parts` instead of `|fromjson` to avoid re-parsing on every render.
 
 ## [1.3.6] - 2026-02-08
 
