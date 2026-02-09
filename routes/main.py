@@ -17,21 +17,39 @@ from content_helpers import (
 bp = Blueprint('main', __name__)
 
 
+MESSAGE_PAGE_SIZE = 50  # full conversation view pagination (#29)
+
+
 @bp.route('/')
 def index():
     per_page = min(max(int(request.args.get('per_page', 50)), 1), 100)
     page = max(int(request.args.get('page', 1)), 1)
+    q = (request.args.get('q') or '').strip()
     conn = db.get_db()
-    total = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
+    if q:
+        total = conn.execute(
+            'SELECT COUNT(*) FROM conversations WHERE title LIKE ?',
+            ('%' + q + '%',),
+        ).fetchone()[0]
+        offset = (page - 1) * per_page
+        conversations = conn.execute('''
+            SELECT id, title, create_time, update_time
+            FROM conversations
+            WHERE title LIKE ?
+            ORDER BY CAST(update_time AS REAL) DESC
+            LIMIT ? OFFSET ?
+        ''', ('%' + q + '%', per_page, offset)).fetchall()
+    else:
+        total = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
+        offset = (page - 1) * per_page
+        conversations = conn.execute('''
+            SELECT id, title, create_time, update_time
+            FROM conversations
+            ORDER BY CAST(update_time AS REAL) DESC
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset)).fetchall()
     total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
     page = min(page, total_pages)
-    offset = (page - 1) * per_page
-    conversations = conn.execute('''
-        SELECT id, title, create_time, update_time
-        FROM conversations
-        ORDER BY CAST(update_time AS REAL) DESC
-        LIMIT ? OFFSET ?
-    ''', (per_page, offset)).fetchall()
     dev_mode = db.get_setting('dev_mode', 'false') == 'true'
     dark_mode = db.get_setting('dark_mode', 'false') == 'true'
     user_name = db.get_setting('user_name', 'User')
@@ -42,6 +60,7 @@ def index():
                          per_page=per_page,
                          total=total,
                          total_pages=total_pages,
+                         q=q,
                          dev_mode=dev_mode,
                          dark_mode=dark_mode,
                          user_name=user_name,
@@ -67,6 +86,15 @@ def conversation(conversation_id):
 
     if not conversation:
         return "Conversation not found", 404
+    total_messages = conn.execute(
+        'SELECT COUNT(*) FROM messages WHERE conversation_id = ?',
+        (conversation_id,),
+    ).fetchone()[0]
+    msg_page = max(int(request.args.get('page', 1)), 1)
+    msg_per_page = MESSAGE_PAGE_SIZE
+    msg_total_pages = max(1, (total_messages + msg_per_page - 1) // msg_per_page) if total_messages else 1
+    msg_page = min(msg_page, msg_total_pages)
+    offset = (msg_page - 1) * msg_per_page
     messages = conn.execute('''
         SELECT m.*,
                mm.message_type, mm.model_slug, mm.citations, mm.content_references,
@@ -76,7 +104,8 @@ def conversation(conversation_id):
         LEFT JOIN message_metadata mm ON m.id = mm.message_id
         WHERE m.conversation_id = ?
         ORDER BY m.create_time
-    ''', (conversation_id,)).fetchall()
+        LIMIT ? OFFSET ?
+    ''', (conversation_id, msg_per_page, offset)).fetchall()
 
     message_list = [message_row_to_dict(msg) for msg in messages]
     _attach_content_parts(message_list)
@@ -86,9 +115,17 @@ def conversation(conversation_id):
     user_name = db.get_setting('user_name', 'User')
     assistant_name = db.get_setting('assistant_name', 'Assistant')
 
+    msg_start = (msg_page - 1) * msg_per_page + 1
+    msg_end = min(msg_page * msg_per_page, total_messages) if total_messages else 0
     return render_template('conversation.html',
                          conversation=conversation,
                          messages=message_list,
+                         total_messages=total_messages,
+                         message_page=msg_page,
+                         message_total_pages=msg_total_pages,
+                         message_per_page=msg_per_page,
+                         message_start=msg_start,
+                         message_end=msg_end,
                          dev_mode=dev_mode,
                          verbose_mode=verbose_mode or override_verbose_mode,
                          dark_mode=dark_mode,
@@ -184,12 +221,28 @@ def import_json():
         if not content:
             return 'Empty file', 400
         data = json.loads(content)
-        db.import_conversations_data(data)
+        n = db.import_conversations_data(data)
+        flash(f'Imported {n} conversation{"s" if n != 1 else ""}.')
         return redirect(url_for('main.index'))
     except json.JSONDecodeError:
         return 'Invalid JSON file', 400
     except Exception as e:
         return f'Error importing file: {str(e)}', 400
+
+
+@bp.route('/conversation/<conversation_id>/delete', methods=['POST'])
+def delete_conversation(conversation_id):
+    conn = db.get_db()
+    conversation = conn.execute('SELECT id FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
+    if not conversation:
+        return "Conversation not found", 404
+    conn.execute('DELETE FROM message_metadata WHERE message_id IN (SELECT id FROM messages WHERE conversation_id = ?)', (conversation_id,))
+    conn.execute('DELETE FROM message_children WHERE parent_id IN (SELECT id FROM messages WHERE conversation_id = ?) OR child_id IN (SELECT id FROM messages WHERE conversation_id = ?)', (conversation_id, conversation_id))
+    conn.execute('DELETE FROM messages WHERE conversation_id = ?', (conversation_id,))
+    conn.execute('DELETE FROM conversations WHERE id = ?', (conversation_id,))
+    conn.commit()
+    flash('Conversation deleted.')
+    return redirect(url_for('main.index'))
 
 
 @bp.route('/toggle_view_mode', methods=['POST'])

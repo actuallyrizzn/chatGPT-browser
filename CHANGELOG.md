@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- (None)
+- **Search conversations** (fixes #48): Index ?q= filters by title; search box on home; pagination preserves q.
+- **Conversation deletion** (fixes #56): POST /conversation/<id>/delete with confirm; cascade deletes; flash on index.
 
 ### Changed
-- (None)
+- **Full view message pagination** (fixes #29): Dev/full conversation loads 50 messages per page with Previous/Next.
+- **Import feedback** (fixes #59): import_conversations_data returns count; flash "Imported N conversations." after web import.
 
 ### Fixed
 - (None)

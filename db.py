@@ -165,3 +165,4 @@ def import_conversations_data(data):
             continue
     conn.commit()
     _close_if_not_from_g(conn)
+    return imported

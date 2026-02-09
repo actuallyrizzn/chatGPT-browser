@@ -298,3 +298,40 @@ class TestImportRoute:
             )
         assert r.status_code == 400
         assert b"error" in r.data.lower()
+
+    def test_import_success_shows_flash(self, client_with_db, sample_chatgpt_export):
+        r = client_with_db.post(
+            "/import",
+            data={"file": (io.BytesIO(json.dumps(sample_chatgpt_export).encode()), "c.json")},
+            follow_redirects=True,
+        )
+        assert r.status_code == 200
+        assert b"Imported" in r.data
+
+
+class TestDeleteConversation:
+    def test_delete_removes_conversation(self, seeded_db):
+        r = seeded_db.post(
+            "/conversation/test-conversation-123/delete",
+            follow_redirects=True,
+        )
+        assert r.status_code == 200
+        assert b"deleted" in r.data.lower() or b"Conversation deleted" in r.data
+        conn = app_module.get_db()
+        row = conn.execute("SELECT id FROM conversations WHERE id = ?", ("test-conversation-123",)).fetchone()
+        conn.close()
+        assert row is None
+
+    def test_delete_404_when_not_found(self, client_with_db):
+        r = client_with_db.post("/conversation/nonexistent-id/delete", follow_redirects=False)
+        assert r.status_code == 404
+
+
+class TestSearch:
+    def test_index_search_filters_by_title(self, seeded_db):
+        r = seeded_db.get("/?q=Test")
+        assert r.status_code == 200
+        assert b"Test Conversation" in r.data
+        r2 = seeded_db.get("/?q=NonExistentTitleXYZ")
+        assert r2.status_code == 200
+        assert b"No conversations" in r2.data or b"0 conversation" in r2.data
