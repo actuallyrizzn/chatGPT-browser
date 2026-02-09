@@ -260,27 +260,32 @@ def nice_conversation(conversation_id):
     if not canonical_endpoint:
         return "No canonical endpoint found", 404
     
-    # Get the path to root
-    path = []
-    current_id = canonical_endpoint['id']
-    
-    while current_id:
-        message = conn.execute('''
-            SELECT m.*, 
+    # Get the path from endpoint to root in one query (recursive CTE; no conversation_id filter so branches work)
+    endpoint_id = canonical_endpoint['id']
+    path_rows = conn.execute('''
+        WITH RECURSIVE path AS (
+            SELECT m.id, m.conversation_id, m.role, m.content, m.create_time, m.update_time, m.parent_id,
                    mm.message_type, mm.model_slug, mm.citations, mm.content_references,
                    mm.finish_details, mm.is_complete, mm.request_id, mm.timestamp_,
                    mm.message_source, mm.serialization_metadata
             FROM messages m
             LEFT JOIN message_metadata mm ON m.id = mm.message_id
             WHERE m.id = ?
-        ''', (current_id,)).fetchone()
-        
-        if not message:
-            break
-            
-        # Convert message to dict with metadata
+            UNION ALL
+            SELECT m.id, m.conversation_id, m.role, m.content, m.create_time, m.update_time, m.parent_id,
+                   mm.message_type, mm.model_slug, mm.citations, mm.content_references,
+                   mm.finish_details, mm.is_complete, mm.request_id, mm.timestamp_,
+                   mm.message_source, mm.serialization_metadata
+            FROM messages m
+            LEFT JOIN message_metadata mm ON m.id = mm.message_id
+            INNER JOIN path p ON m.id = p.parent_id
+        )
+        SELECT * FROM path
+    ''', (endpoint_id,)).fetchall()
+    path = []
+    for message in path_rows:
         message_dict = dict(message)
-        if message_dict['message_type']:  # If metadata exists
+        if message_dict.get('message_type'):
             message_dict['metadata'] = {
                 'message_type': message_dict.pop('message_type'),
                 'model_slug': message_dict.pop('model_slug'),
@@ -294,12 +299,7 @@ def nice_conversation(conversation_id):
                 'serialization_metadata': message_dict.pop('serialization_metadata')
             }
         path.append(message_dict)
-        
-        if not message['parent_id']:
-            break
-            
-        current_id = message['parent_id']
-    
+
     # In Nice view, hide system messages and messages with no displayable content
     path = [m for m in path if m.get('role') != 'system' and _message_has_displayable_content(m)]
     

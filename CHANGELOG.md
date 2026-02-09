@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DB connection cleanup** (fixes #16, #17): get_db() uses Flask g per request and teardown_appcontext closes it; outside app context returns a new conn (callers close via _close_if_not_from_g). get_setting/set_setting no longer close the request-scoped connection, so multiple calls per request reuse one connection.
 - **update_time ordering** (fixes #47): Index query uses ORDER BY CAST(update_time AS REAL) DESC for correct numeric ordering when stored as TEXT.
 - **Import batch commits** (fixes #18): import_conversations_data commits every IMPORT_BATCH_SIZE (50) conversations and at end; progress printed to stderr. Partial progress persisted if process fails.
+- **Canonical path N+1** (fixes #23): Nice conversation view now uses a single recursive CTE to load the full leaf-to-root path (no conversation_id in recursion so branches work); replaces per-message loop.
 
 ## [1.3.6] - 2026-02-08
 
