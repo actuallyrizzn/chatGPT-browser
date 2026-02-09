@@ -7,18 +7,19 @@ import json
 import os
 import sys
 
-# Run from project root so app can find chatgpt.db
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from app import import_conversations_data, init_db
 
 
 def main():
+    # Change to script dir only when invoked as entry point so app can find chatgpt.db
+    os.chdir(BASE_DIR)
     parser = argparse.ArgumentParser(description="Ingest ChatGPT conversations from a JSON file")
     parser.add_argument(
         "path",
         nargs="?",
-        default=os.path.join("chatgpt_export", "conversations.json"),
+        default=os.path.join(BASE_DIR, "chatgpt_export", "conversations.json"),
         help="Path to conversations.json (default: chatgpt_export/conversations.json)",
     )
     parser.add_argument("--init-db", action="store_true", help="Initialize database before ingest")

@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.7] - 2026-02-08
 
 ### Changed
-- **Canonical path label** (fixes #24): Info box now says "X messages in thread (Y in this branch)" to avoid confusion when path crosses branches.
+- **Canonical path label** (fixes #24): Info box now says "X messages in thread (Y in this branch)".
+- **run_ingest CWD** (fixes #27): os.chdir moved into main() and default path uses BASE_DIR so import-time CWD is unchanged.
 
 ## [1.3.6] - 2026-02-08
 
