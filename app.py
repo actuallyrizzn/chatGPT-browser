@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # ChatGPT Browser - https://github.com/actuallyrizzn/chatGPT-browser
 # Copyright (C) 2024-2025. Licensed under the GNU AGPLv3. See LICENSE.
-from flask import Flask, g, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, g, render_template, request, redirect, url_for, session, jsonify, flash
 from markupsafe import Markup
 import sqlite3
 import json
@@ -572,7 +572,8 @@ def update_names():
     conn.execute('UPDATE settings SET value = ? WHERE key = ?', (user_name, 'user_name'))
     conn.execute('UPDATE settings SET value = ? WHERE key = ?', (assistant_name, 'assistant_name'))
     conn.commit()
-    return redirect(url_for('index'))
+    flash('Settings saved.')
+    return redirect(url_for('settings'))
 
 if __name__ == '__main__':
     init_db()

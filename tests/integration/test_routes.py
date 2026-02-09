@@ -173,16 +173,16 @@ class TestSettingsRoutes:
         assert r.status_code == 200
         assert b"Settings" in r.data or b"settings" in r.data
 
-    def test_update_names_redirects_to_index(self, client_with_db):
+    def test_update_names_redirects_to_settings_with_flash(self, client_with_db):
         r = client_with_db.post(
             "/update_names",
             data={"user_name": "Alice", "assistant_name": "Bob"},
-            follow_redirects=False,
+            follow_redirects=True,
         )
-        assert r.status_code in (302, 303)
-        assert r.location.endswith("/") or "/" in r.location
+        assert r.status_code == 200
         assert app_module.get_setting("user_name") == "Alice"
         assert app_module.get_setting("assistant_name") == "Bob"
+        assert b"Settings saved" in r.data
 
 
 class TestToggleRoutes:

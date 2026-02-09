@@ -3,6 +3,18 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ messages[0] }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        {% endwith %}
+        <div id="settings-toast" class="alert alert-dismissible fade" role="alert" aria-live="polite" style="display: none;">
+            <span id="settings-toast-msg"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
         <div class="card mb-4">
             <div class="card-header">
                 <h4 class="mb-0">Settings</h4>
@@ -106,10 +118,10 @@ document.getElementById('view_mode').addEventListener('change', function() {
     fetch('/toggle_view_mode')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                // Optionally show a success message
-            }
-        });
+            if (data.success) showSettingsFeedback('Settings saved.');
+            else showSettingsFeedback('Failed to save.', true);
+        })
+        .catch(() => showSettingsFeedback('Failed to save.', true));
 });
 
 document.getElementById('verbose_mode').addEventListener('change', function() {
@@ -117,11 +129,24 @@ document.getElementById('verbose_mode').addEventListener('change', function() {
         fetch('/toggle_verbose_mode', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    // Optionally show a success message
-                }
-            });
+                if (data.success) showSettingsFeedback('Settings saved.');
+                else showSettingsFeedback('Failed to save.', true);
+            })
+            .catch(() => showSettingsFeedback('Failed to save.', true));
     }
 });
+function showSettingsFeedback(msg, isError) {
+    const el = document.getElementById('settings-toast');
+    const msgEl = document.getElementById('settings-toast-msg');
+    if (!el || !msgEl) return;
+    msgEl.textContent = msg;
+    el.className = 'alert alert-dismissible fade show ' + (isError ? 'alert-danger' : 'alert-success');
+    el.style.display = 'block';
+    el.setAttribute('role', 'alert');
+    setTimeout(function() {
+        el.classList.remove('show');
+        el.style.display = 'none';
+    }, 3000);
+}
 </script>
 {% endblock %} 
