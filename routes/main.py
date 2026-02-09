@@ -4,9 +4,11 @@
 """Main routes: index, conversations, import, settings, toggles."""
 
 import json
+import os
+import tempfile
 from datetime import datetime, timezone
 
-from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
+from flask import after_this_request, Blueprint, flash, make_response, redirect, render_template, request, send_file, session, url_for
 
 import db
 from csrf import validate_csrf
@@ -281,6 +283,33 @@ def delete_conversation(conversation_id):
     return redirect(url_for('main.index'))
 
 
+def _get_canonical_path_rows(conn, conversation_id):
+    """Return message rows for the canonical path (root first). Empty if no canonical endpoint."""
+    canonical_endpoint = conn.execute('''
+        SELECT m.id
+        FROM messages m
+        LEFT JOIN messages child ON m.id = child.parent_id
+        WHERE m.conversation_id = ? AND child.id IS NULL
+        ORDER BY m.create_time DESC
+        LIMIT 1
+    ''', (conversation_id,)).fetchone()
+    if not canonical_endpoint:
+        return []
+    endpoint_id = canonical_endpoint['id']
+    path_rows = conn.execute('''
+        WITH RECURSIVE path AS (
+            SELECT m.id, m.conversation_id, m.role, m.content, m.create_time, m.update_time
+            FROM messages m WHERE m.id = ?
+            UNION ALL
+            SELECT m.id, m.conversation_id, m.role, m.content, m.create_time, m.update_time
+            FROM messages m INNER JOIN path p ON m.id = p.parent_id
+        )
+        SELECT * FROM path
+    ''', (endpoint_id,)).fetchall()
+    # path is leaf first; reverse so root is first (position 1)
+    return list(reversed(path_rows))
+
+
 def _build_export_mapping(conn, conversation_id):
     """Build ChatGPT-style mapping for one conversation (id -> { message, parent, children })."""
     messages = conn.execute('''
@@ -391,6 +420,78 @@ def export_conversation_markdown(conversation_id):
     resp.headers['Content-Type'] = 'text/markdown; charset=utf-8'
     resp.headers['Content-Disposition'] = f'attachment; filename="conversation-{conversation_id[:20]}.md"'
     return resp
+
+
+@bp.route('/export/canonical-db')
+def export_canonical_db():
+    """Generate a SQLite DB containing only canonical (linear) threads for use in other tools."""
+    conn = db.get_db()
+    conversations = conn.execute(
+        'SELECT id, create_time, update_time, title FROM conversations ORDER BY update_time'
+    ).fetchall()
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+    tmp.close()
+    out_path = tmp.name
+    try:
+        export_conn = __import__('sqlite3').connect(out_path)
+        export_conn.executescript('''
+            CREATE TABLE conversations (
+                id TEXT PRIMARY KEY,
+                create_time TEXT,
+                update_time TEXT,
+                title TEXT
+            );
+            CREATE TABLE messages (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                role TEXT,
+                content TEXT,
+                create_time TEXT,
+                update_time TEXT,
+                position INTEGER NOT NULL,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+            );
+            CREATE INDEX idx_canonical_messages_conversation ON messages(conversation_id);
+        ''')
+        for conv in conversations:
+            cid = conv['id']
+            export_conn.execute(
+                'INSERT INTO conversations (id, create_time, update_time, title) VALUES (?, ?, ?, ?)',
+                (cid, conv['create_time'] or '', conv['update_time'] or '', conv['title'] or '')
+            )
+            path_rows = _get_canonical_path_rows(conn, cid)
+            for pos, row in enumerate(path_rows, start=1):
+                export_conn.execute('''
+                    INSERT INTO messages (id, conversation_id, role, content, create_time, update_time, position)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (row['id'], row['conversation_id'], row['role'] or '', row['content'] or '',
+                      row['create_time'], row['update_time'], pos))
+        export_conn.commit()
+        export_conn.close()
+
+        filename = f'canonical-export-{datetime.now(timezone.utc).strftime("%Y-%m-%d")}.db'
+
+        @after_this_request
+        def _remove_canonical_export(response):
+            try:
+                os.unlink(out_path)
+            except OSError:
+                pass
+            return response
+
+        return send_file(
+            out_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/x-sqlite3',
+        )
+    except Exception:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
+        raise
 
 
 @bp.route('/toggle_view_mode', methods=['POST'])

@@ -57,7 +57,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <h4 class="mb-0">Import Conversation</h4>
             </div>
@@ -72,6 +72,18 @@
                         <button type="submit" class="btn btn-primary">Import JSON</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Export data</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Canonical-only database: one linear thread per conversation (no branches). For use in other tools, analytics, or non-ChatGPT products.</p>
+                <a href="{{ url_for('main.export_canonical_db') }}" class="btn btn-outline-primary" download>
+                    <i class="bi bi-download" aria-hidden="true"></i> Download canonical-only database
+                </a>
             </div>
         </div>
     </div>
