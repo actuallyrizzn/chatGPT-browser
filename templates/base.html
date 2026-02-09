@@ -30,13 +30,15 @@
                         </form>
                     </li>
                     <li class="nav-item">
-                        <span class="nav-link">
-                            {% if dev_mode %}
-                                <i class="bi bi-code-slash"></i> Dev View
-                            {% else %}
-                                <i class="bi bi-eye"></i> Nice View
-                            {% endif %}
-                        </span>
+                        <form method="POST" action="{{ url_for('toggle_view_mode', redirect=1) }}" class="d-inline">
+                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0">
+                                {% if dev_mode %}
+                                    <i class="bi bi-code-slash"></i> Dev View
+                                {% else %}
+                                    <i class="bi bi-eye"></i> Nice View
+                                {% endif %}
+                            </button>
+                        </form>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('settings') }}">

@@ -445,6 +445,8 @@ def toggle_view_mode():
     current = get_setting('dev_mode', 'false')
     new_value = 'false' if current == 'true' else 'true'
     set_setting('dev_mode', new_value)
+    if request.args.get('redirect'):
+        return redirect(request.referrer or url_for('index'))
     return jsonify({'success': True, 'dev_mode': new_value == 'true'})
 
 @app.route('/toggle_dark_mode', methods=['POST'])

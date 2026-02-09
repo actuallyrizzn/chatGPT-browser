@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Canonical path label** (fixes #24): Info box now says "X messages in thread (Y in this branch)".
 - **run_ingest CWD** (fixes #27): os.chdir moved into main() and default path uses BASE_DIR so import-time CWD is unchanged.
+- **Navbar view mode** (fixes #49): View mode indicator is now a POST form that toggles and redirects; no longer a non-clickable label.
 
 ## [1.3.6] - 2026-02-08
 
