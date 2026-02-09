@@ -8,16 +8,16 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="conversation-title">{{ conversation.title }}</h1>
         <div class="d-flex gap-2 align-items-center">
-            <div class="btn-group">
-                <a href="{{ url_for('main.export_conversation_json', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download>JSON</a>
-                <a href="{{ url_for('main.export_conversation_markdown', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download>Markdown</a>
+            <div class="btn-group" role="group" aria-label="Export conversation">
+                <a href="{{ url_for('main.export_conversation_json', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download aria-label="Export as JSON">JSON</a>
+                <a href="{{ url_for('main.export_conversation_markdown', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download aria-label="Export as Markdown">Markdown</a>
             </div>
             {% if dev_mode %}
-            <button id="verboseToggle" class="btn btn-outline-secondary">
-                <i class="bi bi-list-ul"></i> {{ 'Hide' if verbose_mode else 'Show' }} Details
+            <button id="verboseToggle" class="btn btn-outline-secondary" aria-label="{{ 'Hide' if verbose_mode else 'Show' }} message details">
+                <i class="bi bi-list-ul" aria-hidden="true"></i> {{ 'Hide' if verbose_mode else 'Show' }} Details
             </button>
-            <a href="{{ url_for('main.nice_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary">
-                <i class="bi bi-eye"></i> Switch to Nice View
+            <a href="{{ url_for('main.nice_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary" aria-label="Switch to Nice View">
+                <i class="bi bi-eye" aria-hidden="true"></i> Switch to Nice View
             </a>
             {% endif %}
         </div>
@@ -97,11 +97,11 @@
         <p class="text-muted small">Showing {{ message_start }}–{{ message_end }} of {{ total_messages }} messages.</p>
         <ul class="pagination">
             <li class="page-item {% if message_page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="{% if message_page > 1 %}{{ url_for('main.conversation', conversation_id=conversation.id, page=message_page-1) }}{% else %}#{% endif %}">Previous</a>
+                <a class="page-link" href="{% if message_page > 1 %}{{ url_for('main.conversation', conversation_id=conversation.id, page=message_page-1) }}{% else %}#{% endif %}" aria-label="Previous page">Previous</a>
             </li>
-            <li class="page-item disabled"><span class="page-link">Page {{ message_page }} of {{ message_total_pages }}</span></li>
+            <li class="page-item disabled"><span class="page-link" aria-current="page">Page {{ message_page }} of {{ message_total_pages }}</span></li>
             <li class="page-item {% if message_page >= message_total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{% if message_page < message_total_pages %}{{ url_for('main.conversation', conversation_id=conversation.id, page=message_page+1) }}{% else %}#{% endif %}">Next</a>
+                <a class="page-link" href="{% if message_page < message_total_pages %}{{ url_for('main.conversation', conversation_id=conversation.id, page=message_page+1) }}{% else %}#{% endif %}" aria-label="Next page">Next</a>
             </li>
         </ul>
     </nav>

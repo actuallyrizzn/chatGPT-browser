@@ -17,54 +17,60 @@
 </head>
 <body {% if dark_mode %}class="dark"{% endif %}>
     <a href="#main-content" class="skip-link">Skip to main content</a>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4" aria-label="Main navigation">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">ChatGPT Browser</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Open menu" aria-expanded="false" aria-controls="navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <button type="button" id="dark-mode-toggle" class="nav-link border-0 bg-transparent text-light p-0" aria-label="Toggle dark mode">
-                            {% if dark_mode %}
-                                <i class="bi bi-sun" aria-hidden="true"></i> <span class="dark-mode-label">Light Mode</span>
-                            {% else %}
-                                <i class="bi bi-moon" aria-hidden="true"></i> <span class="dark-mode-label">Dark Mode</span>
-                            {% endif %}
-                        </button>
-                    </li>
-                    <li class="nav-item">
-                        <form method="POST" action="{{ url_for('main.toggle_view_mode', redirect=1) }}" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0" aria-label="Toggle view mode (Nice or Dev)">
-                                {% if dev_mode %}
-                                    <i class="bi bi-code-slash" aria-hidden="true"></i> Dev View
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4" aria-label="Main navigation">
+            <div class="container">
+                <a class="navbar-brand" href="{{ url_for('main.index') }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>ChatGPT Browser</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Open menu" aria-expanded="false" aria-controls="navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <button type="button" id="dark-mode-toggle" class="nav-link border-0 bg-transparent text-light p-0" aria-label="Toggle dark mode">
+                                {% if dark_mode %}
+                                    <i class="bi bi-sun" aria-hidden="true"></i> <span class="dark-mode-label">Light Mode</span>
                                 {% else %}
-                                    <i class="bi bi-eye" aria-hidden="true"></i> Nice View
+                                    <i class="bi bi-moon" aria-hidden="true"></i> <span class="dark-mode-label">Dark Mode</span>
                                 {% endif %}
                             </button>
-                        </form>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.stats') }}" aria-label="Statistics">Stats</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.settings') }}" aria-label="Settings">
-                            <i class="bi bi-gear" aria-hidden="true"></i> Settings
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <button type="button" class="nav-link border-0 bg-transparent text-light p-0" data-bs-toggle="modal" data-bs-target="#shortcuts-modal" aria-label="Keyboard shortcuts">? Shortcuts</button>
-                    </li>
-                </ul>
+                        </li>
+                        <li class="nav-item">
+                            <form method="POST" action="{{ url_for('main.toggle_view_mode', redirect=1) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="nav-link border-0 bg-transparent text-light p-0" aria-label="Toggle view mode (Nice or Dev)">
+                                    {% if dev_mode %}
+                                        <i class="bi bi-code-slash" aria-hidden="true"></i> Dev View
+                                    {% else %}
+                                        <i class="bi bi-eye" aria-hidden="true"></i> Nice View
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'main.stats' %}active{% endif %}" href="{{ url_for('main.stats') }}" aria-label="Statistics" {% if request.endpoint == 'main.stats' %}aria-current="page"{% endif %}>Stats</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}" href="{{ url_for('main.settings') }}" aria-label="Settings" {% if request.endpoint == 'main.settings' %}aria-current="page"{% endif %}>
+                                <i class="bi bi-gear" aria-hidden="true"></i> Settings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link border-0 bg-transparent text-light p-0" data-bs-toggle="modal" data-bs-target="#shortcuts-modal" aria-label="Keyboard shortcuts">? Shortcuts</button>
+                        </li>
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
     <main id="main-content" class="container" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="container py-4 mt-4 border-top text-center text-muted">
+        <p class="small mb-0">&copy; 2026 ChatGPT Browser</p>
+    </footer>
 
     <div class="modal fade" id="shortcuts-modal" tabindex="-1" aria-labelledby="shortcuts-modal-label" aria-hidden="true">
         <div class="modal-dialog">

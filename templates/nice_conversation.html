@@ -8,17 +8,17 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="conversation-title">{{ conversation.title }}</h1>
         <div class="d-flex gap-2 align-items-center">
-            <div class="btn-group">
-                <a href="{{ url_for('main.export_conversation_json', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download>JSON</a>
-                <a href="{{ url_for('main.export_conversation_markdown', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download>Markdown</a>
+            <div class="btn-group" role="group" aria-label="Export conversation">
+                <a href="{{ url_for('main.export_conversation_json', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download aria-label="Export as JSON">JSON</a>
+                <a href="{{ url_for('main.export_conversation_markdown', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download aria-label="Export as Markdown">Markdown</a>
             </div>
             {% if dev_mode %}
-            <button id="verboseToggle" class="btn btn-outline-secondary">
-                <i class="bi bi-list-ul"></i> {{ 'Hide' if verbose_mode else 'Show' }} Details
+            <button id="verboseToggle" class="btn btn-outline-secondary" aria-label="{{ 'Hide' if verbose_mode else 'Show' }} message details">
+                <i class="bi bi-list-ul" aria-hidden="true"></i> {{ 'Hide' if verbose_mode else 'Show' }} Details
             </button>
             {% endif %}
-            <a href="{{ url_for('main.full_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary">
-                <i class="bi bi-eye"></i> Switch to Full View
+            <a href="{{ url_for('main.full_conversation', conversation_id=conversation.id) }}" class="btn btn-outline-primary" aria-label="Switch to Full View">
+                <i class="bi bi-eye" aria-hidden="true"></i> Switch to Full View
             </a>
         </div>
     </div>
