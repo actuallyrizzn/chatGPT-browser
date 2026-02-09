@@ -35,10 +35,12 @@
             <div class="message-content">
                 {% if message.content %}
                     {% for part in message.content|fromjson %}
-                        {% if part is string %}
-                            {{ part|markdown|safe }}
-                        {% else %}
-                            <pre><code>{{ part|tojson(indent=2) }}</code></pre>
+                        {% if part is not none and (part is not string or (part|trim)) %}
+                            {% if part is string %}
+                                {{ part|markdown|safe }}
+                            {% else %}
+                                <pre><code>{{ part|tojson(indent=2) }}</code></pre>
+                            {% endif %}
                         {% endif %}
                     {% endfor %}
                 {% endif %}

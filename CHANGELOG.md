@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.6] - 2026-02-08
+
+### Added
+- (None)
+
+### Changed
+- **Bootstrap** (fixes #45): CDN updated from 5.1.3 to 5.3.3 (CSS and JS).
+- **Nice view** (fixes #37, #38): System messages and messages with no displayable content are excluded from the canonical path. Empty/whitespace-only parts are skipped when rendering. Datetime filter returns "—" for None or invalid timestamps (no more "None" in headers).
+
+### Fixed
+- Removed workflow cruft: deleted docs/gh-close-*.md, docs/gh-issue-*-comment.md, docs/gh-issue-*-close.md; removed committed docs/gh-issue-1-propose.md, docs/gh-issue-5-propose.md.
+
 ## [1.3.5] - 2026-02-08
 
 ### Added

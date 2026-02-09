@@ -83,13 +83,14 @@ def set_setting(key, value):
 
 @app.template_filter('datetime')
 def format_datetime(timestamp):
+    if timestamp is None:
+        return '—'
     try:
-        # Handle both string and float timestamps
         if isinstance(timestamp, str):
             timestamp = float(timestamp)
         return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     except (ValueError, TypeError):
-        return timestamp
+        return '—'
 
 @app.template_filter('json_loads')
 def json_loads_filter(value):
@@ -273,6 +274,9 @@ def nice_conversation(conversation_id):
             
         current_id = message['parent_id']
     
+    # In Nice view, hide system messages and messages with no displayable content
+    path = [m for m in path if m.get('role') != 'system' and _message_has_displayable_content(m)]
+    
     # Get total message count for the conversation
     total_messages = conn.execute('''
         SELECT COUNT(*) as count
@@ -313,6 +317,28 @@ def _parse_timestamp(ts):
         return ts
     except (ValueError, TypeError):
         return None
+
+
+def _message_has_displayable_content(message):
+    """True if message has at least one non-empty part (for hiding empty/system bubbles in Nice view)."""
+    content = message.get('content')
+    if content is None:
+        return False
+    if isinstance(content, str):
+        try:
+            content = json.loads(content) if content.strip() else []
+        except (TypeError, ValueError):
+            return False
+    if not content or not isinstance(content, list):
+        return False
+    for part in content:
+        if part is None:
+            continue
+        if isinstance(part, str) and part.strip():
+            return True
+        if isinstance(part, dict):
+            return True  # dict parts are shown (e.g. as JSON) so consider as content
+    return False
 
 def import_conversations_data(data):
     """Import a list of conversation dicts into the database. Used by both web upload and CLI ingest."""

@@ -61,9 +61,9 @@ class TestDatetimeFilter:
         result = app_module.format_datetime("1640995200.0")
         assert "2022" in result or "2021" in result
 
-    def test_invalid_returns_unchanged(self):
-        assert app_module.format_datetime("invalid") == "invalid"
-        assert app_module.format_datetime(None) is None
+    def test_invalid_or_none_returns_placeholder(self):
+        assert app_module.format_datetime("invalid") == "—"
+        assert app_module.format_datetime(None) == "—"
 
 
 class TestJsonLoadsFilter:
