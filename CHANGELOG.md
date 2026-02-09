@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.7] - 2026-02-08
+
+### Changed
+- **Canonical path label** (fixes #24): Info box now says "X messages in thread (Y in this branch)" to avoid confusion when path crosses branches.
+
 ## [1.3.6] - 2026-02-08
 
 ### Added
