@@ -18,10 +18,10 @@
 
     <div class="conversation">
         {% for message in messages %}
-        <div class="message {% if message.role == 'assistant' %}assistant{% else %}user{% endif %} mb-4">
+        <div class="message {{ message.role }} mb-4">
             <div class="message-header d-flex justify-content-between align-items-start mb-2">
                 <div>
-                    <strong>{{ assistant_name if message.role == 'assistant' else user_name }}</strong>
+                    <strong>{% if message.role == 'assistant' %}{{ assistant_name }}{% elif message.role == 'user' %}{{ user_name }}{% elif message.role == 'tool' %}Tool{% elif message.role == 'system' %}System{% else %}{{ user_name }}{% endif %}</strong>
                     <span class="text-muted ms-2">{{ message.create_time|datetime }}</span>
                 </div>
                 {% if dev_mode and verbose_mode %}

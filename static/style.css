@@ -58,6 +58,12 @@ body {
     margin-right: 2rem;
 }
 
+.message.tool,
+.message.system {
+    opacity: 0.9;
+    font-size: 0.95rem;
+}
+
 .message-header {
     margin-bottom: 0.5rem;
 }

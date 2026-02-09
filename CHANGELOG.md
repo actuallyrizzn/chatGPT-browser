@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.3] - 2026-02-08
+
+### Changed
+- **Role-aware message labels** (fixes #36): Tool and system messages now show "Tool" and "System" instead of the user's name; user/assistant unchanged. Message div uses class by role (tool/system get muted styling).
+
 ## [1.3.2] - 2026-02-08
 
 ### Added
