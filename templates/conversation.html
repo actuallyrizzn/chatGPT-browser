@@ -2,6 +2,9 @@
 
 {% block content %}
 <div class="container">
+    <p class="mb-2">
+        <a href="{{ url_for('index') }}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to conversations</a>
+    </p>
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>{{ conversation.title }}</h1>
         <div class="d-flex gap-2">

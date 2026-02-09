@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.5] - 2026-02-08
+
+### Added
+- **Back to conversations** link (fixes #44) at top of conversation and nice_conversation views.
+
+### Changed
+- **Datetime filter** (fixes #43): timestamps now shown in UTC with " UTC" suffix (e.g. `2022-01-01 00:00 UTC`).
+
+### Fixed
+- **Nice view info box** (fixes #41): uses CSS variables `--card-bg` and `--border-color` so it follows dark mode.
+
 ## [1.3.4] - 2026-02-08
 
 ### Added

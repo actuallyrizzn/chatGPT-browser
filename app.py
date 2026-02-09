@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from markupsafe import Markup
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import markdown
 from markdown.extensions import fenced_code, tables
 import os
@@ -87,7 +87,7 @@ def format_datetime(timestamp):
         # Handle both string and float timestamps
         if isinstance(timestamp, str):
             timestamp = float(timestamp)
-        return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     except (ValueError, TypeError):
         return timestamp
 
