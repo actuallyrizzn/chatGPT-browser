@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.4] - 2026-02-08
+
+### Added
+- **Favicon** (fixes #46): SVG favicon in `static/favicon.svg`, linked from `base.html`.
+
+### Fixed
+- **Dark mode CSS class** (fixes #40): Conversation template inline styles now use `body.dark` instead of `.dark-mode` so message and metadata dark styles apply.
+
 ## [1.3.3] - 2026-02-08
 
 ### Changed
