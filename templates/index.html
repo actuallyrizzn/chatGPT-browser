@@ -5,6 +5,9 @@
     <div class="row mb-4">
         <div class="col">
             <h1>ChatGPT Conversations</h1>
+            {% if total is defined and total > 0 %}
+            <p class="text-muted">Page {{ page }} of {{ total_pages }} ({{ total }} conversation{{ 's' if total != 1 else '' }})</p>
+            {% endif %}
         </div>
     </div>
 
@@ -38,5 +41,19 @@ Current Node: {{ conversation.current_node }}</pre>
         </div>
         {% endfor %}
     </div>
+
+    {% if total_pages > 1 %}
+    <nav aria-label="Conversation pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{% if page > 1 %}{{ url_for('index', page=page-1, per_page=per_page) }}{% else %}#{% endif %}">Previous</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{% if page < total_pages %}{{ url_for('index', page=page+1, per_page=per_page) }}{% else %}#{% endif %}">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %} 

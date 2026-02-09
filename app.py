@@ -113,19 +113,30 @@ def markdown_filter(text):
 
 @app.route('/')
 def index():
+    per_page = min(max(int(request.args.get('per_page', 50)), 1), 100)
+    page = max(int(request.args.get('page', 1)), 1)
     conn = get_db()
+    total = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
     conversations = conn.execute('''
         SELECT id, title, create_time, update_time 
         FROM conversations 
         ORDER BY update_time DESC
-    ''').fetchall()
+        LIMIT ? OFFSET ?
+    ''', (per_page, offset)).fetchall()
     conn.close()
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
     user_name = get_setting('user_name', 'User')
     assistant_name = get_setting('assistant_name', 'Assistant')
-    return render_template('index.html', 
+    return render_template('index.html',
                          conversations=conversations,
+                         page=page,
+                         per_page=per_page,
+                         total=total,
+                         total_pages=total_pages,
                          dev_mode=dev_mode,
                          dark_mode=dark_mode,
                          user_name=user_name,

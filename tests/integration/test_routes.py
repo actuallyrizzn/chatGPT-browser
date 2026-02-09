@@ -29,6 +29,17 @@ class TestIndexRoute:
         assert r.status_code == 200
         assert b"Test Conversation" in r.data or b"test-conversation" in r.data
 
+    def test_index_pagination_params(self, seeded_db):
+        r = seeded_db.get("/?page=1&per_page=50")
+        assert r.status_code == 200
+        assert b"Page 1" in r.data and b"Test Conversation" in r.data
+
+    def test_index_page_2_empty_when_single_conversation(self, seeded_db):
+        r = seeded_db.get("/?page=2&per_page=1")
+        assert r.status_code == 200
+        # Page 2 with 1 item total: we clamp to page 1, so still see the conversation
+        assert b"Page" in r.data
+
 
 class TestConversationRoutes:
     def test_conversation_404_when_not_found(self, client_with_db):

@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (None)
 
+## [1.3.2] - 2026-02-08
+
+### Added
+- **Home page pagination** (fixes #28): Index uses `page` and `per_page` query params (default 50 per page, max 100). Previous/Next and "Page X of Y" in template; `ORDER BY update_time DESC` with LIMIT/OFFSET.
+
 ## [1.3.1] - 2026-02-08
 
 ### Changed
