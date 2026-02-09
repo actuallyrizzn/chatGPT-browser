@@ -22,7 +22,9 @@ def main():
         sys.exit(1)
     if os.path.exists(DATABASE_PATH):
         os.remove(DATABASE_PATH)
-    init_db()
+    from app import app
+    with app.app_context():
+        init_db()
     print("Database initialized successfully!")
 
 if __name__ == '__main__':

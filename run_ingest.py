@@ -9,7 +9,7 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-from app import import_conversations_data, init_db
+from app import app, import_conversations_data, init_db
 
 
 def main():
@@ -39,7 +39,8 @@ def main():
     if not isinstance(data, list):
         data = [data]
     print(f"Loaded {len(data)} conversations.")
-    import_conversations_data(data)
+    with app.app_context():
+        import_conversations_data(data)
     print("Ingest complete.")
 
 

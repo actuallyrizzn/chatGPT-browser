@@ -15,7 +15,7 @@ import pytest
 
 # Import module so we can patch get_db on the module (app.get_db is module-level)
 import app as app_module
-from app import app, get_db, init_db
+from app import app, g, get_db, init_db
 
 
 @pytest.fixture
@@ -34,12 +34,20 @@ def test_db():
     original_get_db = app_module.get_db
 
     def get_test_db():
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            if "db" not in g:
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                g.db = conn
+            return g.db
+        except RuntimeError:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            return conn
 
     app_module.get_db = get_test_db
-    init_db()
+    with app.app_context():
+        init_db()
 
     yield db_path
 

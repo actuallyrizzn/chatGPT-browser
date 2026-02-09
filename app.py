@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # ChatGPT Browser - https://github.com/actuallyrizzn/chatGPT-browser
 # Copyright (C) 2024-2025. Licensed under the GNU AGPLv3. See LICENSE.
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, g, render_template, request, redirect, url_for, session, jsonify
 from markupsafe import Markup
 import sqlite3
 import json
@@ -59,31 +59,56 @@ def tojson(value, indent=None):
         return str(value)
 
 def get_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.execute('PRAGMA foreign_keys = ON')
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        if 'db' not in g:
+            conn = sqlite3.connect(DATABASE_PATH)
+            conn.execute('PRAGMA foreign_keys = ON')
+            conn.row_factory = sqlite3.Row
+            g.db = conn
+        return g.db
+    except RuntimeError:
+        # Outside application context (e.g. CLI, unit tests); caller must close
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.execute('PRAGMA foreign_keys = ON')
+        conn.row_factory = sqlite3.Row
+        return conn
+
+@app.teardown_appcontext
+def close_db(exc):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
 
 def init_db():
-    """Create schema and defaults. Uses schema.sql as single source of truth."""
+    """Create schema and defaults. Uses schema.sql as single source of truth. Uses get_db() so tests can patch it; run within app.app_context() when calling from CLI."""
     conn = get_db()
     schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema.sql')
     with open(schema_path, encoding='utf-8') as f:
         conn.executescript(f.read())
     conn.commit()
-    conn.close()
+
+def _close_if_not_from_g(conn):
+    try:
+        if g.get('db') is not conn:
+            conn.close()
+    except RuntimeError:
+        conn.close()
 
 def get_setting(key, default=None):
     conn = get_db()
-    setting = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
-    conn.close()
-    return setting['value'] if setting else default
+    try:
+        setting = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
+        return setting['value'] if setting else default
+    finally:
+        _close_if_not_from_g(conn)
 
 def set_setting(key, value):
     conn = get_db()
-    conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+        conn.commit()
+    finally:
+        _close_if_not_from_g(conn)
 
 @app.template_filter('datetime')
 def format_datetime(timestamp):
@@ -128,10 +153,9 @@ def index():
     conversations = conn.execute('''
         SELECT id, title, create_time, update_time 
         FROM conversations 
-        ORDER BY update_time DESC
+        ORDER BY CAST(update_time AS REAL) DESC
         LIMIT ? OFFSET ?
     ''', (per_page, offset)).fetchall()
-    conn.close()
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
     user_name = get_setting('user_name', 'User')
@@ -169,7 +193,6 @@ def conversation(conversation_id):
     
     if not conversation:
         return "Conversation not found", 404
-    
     # Get all messages with their metadata
     messages = conn.execute('''
         SELECT m.*, 
@@ -181,8 +204,6 @@ def conversation(conversation_id):
         WHERE m.conversation_id = ?
         ORDER BY m.create_time
     ''', (conversation_id,)).fetchall()
-    
-    conn.close()
     
     # Convert messages to list of dicts with metadata
     message_list = []
@@ -287,8 +308,6 @@ def nice_conversation(conversation_id):
         FROM messages
         WHERE conversation_id = ?
     ''', (conversation_id,)).fetchone()['count']
-    
-    conn.close()
     
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
@@ -422,7 +441,7 @@ def import_conversations_data(data):
             print(f"Error processing conversation {conversation_id}: {str(e)}")
             continue
     conn.commit()
-    conn.close()
+    _close_if_not_from_g(conn)
 
 @app.route('/import', methods=['POST'])
 def import_json():
@@ -495,8 +514,6 @@ def update_names():
     conn.execute('UPDATE settings SET value = ? WHERE key = ?', (user_name, 'user_name'))
     conn.execute('UPDATE settings SET value = ? WHERE key = ?', (assistant_name, 'assistant_name'))
     conn.commit()
-    conn.close()
-    
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
