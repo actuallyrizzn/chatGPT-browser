@@ -21,6 +21,7 @@
             </div>
             <div class="card-body">
                 <form action="{{ url_for('main.update_names') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="mb-3">
                         <label for="user_name" class="form-label">Your Name</label>
                         <input type="text" class="form-control" id="user_name" name="user_name" value="{{ user_name }}">
@@ -62,6 +63,7 @@
             </div>
             <div class="card-body">
                 <form action="{{ url_for('main.import_json') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="mb-3">
                         <label for="import_file" class="form-label">Choose JSON File</label>
                         <input type="file" class="form-control" id="import_file" name="file" accept=".json">

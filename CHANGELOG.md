@@ -16,10 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stats page** (fixes #58): /stats shows total conversations, total messages, avg per conversation, and conversations-by-week table.
 - **Keyboard shortcuts** (fixes #60): / focuses search; Escape/Backspace from conversation back to list; "? Shortcuts" modal in nav.
 - **Pin/favorites** (fixes #61): Star on each card toggles pin; state stored in settings (pinned_conversation_ids).
+- **CSRF protection** (fixes #4, #10): Session-bound token; all state-changing POSTs validate token; forms and AJAX (X-CSRFToken) include token.
 
 ### Changed
 - **Full view message pagination** (fixes #29): Dev/full conversation loads 50 messages per page with Previous/Next.
 - **Import feedback** (fixes #59): import_conversations_data returns count; flash "Imported N conversations." after web import.
+- **Caching** (fixes #30): Request-scoped settings cache in g; Cache-Control max-age=3600 for /static/*.
+- **Message bubbles** (fixes #53): Chat-style layout; user right / assistant left; avatars; max-width bubbles; stronger colors.
+- **Typography** (fixes #55): Inter font; conversation title at 1.5rem; message-content line-height 1.5 and paragraph spacing.
 
 ### Fixed
 - (None)

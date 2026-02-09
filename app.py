@@ -5,10 +5,11 @@
 
 import os
 
-from flask import Flask
+from flask import Flask, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 import db
+from csrf import get_csrf_token
 from filters import register_filters
 from routes.main import bp as main_bp
 
@@ -38,9 +39,24 @@ register_filters(app)
 app.register_blueprint(main_bp)
 
 
+@app.context_processor
+def inject_csrf_token():
+    """Inject csrf_token into all templates for forms and AJAX (#4, #10)."""
+    return {'csrf_token': get_csrf_token()}
+
+
 @app.errorhandler(RequestEntityTooLarge)
 def handle_413(e):
     return "Upload exceeds maximum allowed size (set MAX_UPLOAD_MB env to change limit).", 413
+
+
+@app.after_request
+def add_static_cache_headers(response):
+    """Set Cache-Control for static assets (#30)."""
+    if request.path.startswith('/static/'):
+        response.cache_control.max_age = 3600
+        response.cache_control.public = True
+    return response
 
 
 # Re-export for CLI and tests that import from app

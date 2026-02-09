@@ -167,6 +167,17 @@ class TestConversationRoutes:
         assert b"Hello" in r.data or b"nice" in r.data.lower()
 
 
+class TestCsrfProtection:
+    def test_post_without_csrf_token_returns_403(self, client_with_db_csrf_enabled):
+        client_with_db_csrf_enabled.get("/settings")
+        r = client_with_db_csrf_enabled.post(
+            "/update_names",
+            data={"user_name": "Alice", "assistant_name": "Bob"},
+        )
+        assert r.status_code == 403
+        assert b"CSRF" in r.data or b"token" in r.data.lower()
+
+
 class TestSettingsRoutes:
     def test_settings_page_200(self, client_with_db):
         r = client_with_db.get("/settings")

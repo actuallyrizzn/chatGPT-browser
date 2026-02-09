@@ -34,6 +34,7 @@
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-2">
                         <form method="POST" action="{{ url_for('main.toggle_pin', conversation_id=conversation.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="btn btn-link btn-sm p-0 text-warning border-0" aria-label="{{ 'Unpin' if conversation.id in pinned_ids else 'Pin' }} conversation">{% if conversation.id in pinned_ids %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}</button>
                         </form>
                         <h5 class="card-title mb-0">
@@ -53,6 +54,7 @@
                     {% endif %}
                 </div>
                 <form method="POST" action="{{ url_for('main.delete_conversation', conversation_id=conversation.id) }}" class="ms-2" onsubmit="return confirm('Delete this conversation? This cannot be undone.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="btn btn-outline-danger btn-sm" aria-label="Delete conversation"><i class="bi bi-trash"></i></button>
                 </form>
             </div>

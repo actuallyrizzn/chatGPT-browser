@@ -10,6 +10,7 @@ import sqlite3
 import tempfile
 import threading
 import time
+from unittest.mock import patch
 
 import pytest
 
@@ -25,8 +26,9 @@ def client():
     """Create a test client (uses default DB unless test_db is also used)."""
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
-    with app.test_client() as c:
-        yield c
+    with patch('routes.main.validate_csrf', return_value=None):
+        with app.test_client() as c:
+            yield c
 
 
 @pytest.fixture
@@ -68,6 +70,15 @@ def client_with_db(test_db):
     """Test client that uses the temporary test database."""
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
+    with patch('routes.main.validate_csrf', return_value=None):
+        with app.test_client() as c:
+            yield c
+
+
+@pytest.fixture
+def client_with_db_csrf_enabled(test_db):
+    """Test client with test DB and CSRF validation enabled (for CSRF rejection tests)."""
+    app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
 

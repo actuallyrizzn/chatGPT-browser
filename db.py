@@ -55,6 +55,16 @@ def init_db():
 
 
 def get_setting(key, default=None):
+    """Return setting value; use request-scoped cache in g to batch reads (#30)."""
+    try:
+        if 'db' in g:
+            if '_settings_cache' not in g:
+                conn = get_db()
+                rows = conn.execute('SELECT key, value FROM settings').fetchall()
+                g._settings_cache = {r['key']: r['value'] for r in rows}
+            return g._settings_cache.get(key, default)
+    except RuntimeError:
+        pass
     conn = get_db()
     try:
         setting = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
@@ -68,6 +78,11 @@ def set_setting(key, value):
     try:
         conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
         conn.commit()
+        try:
+            if 'db' in g and '_settings_cache' in g:
+                g._settings_cache[key] = value
+        except RuntimeError:
+            pass
     finally:
         _close_if_not_from_g(conn)
 

@@ -8,6 +8,7 @@ import json
 from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
 
 import db
+from csrf import validate_csrf
 from content_helpers import (
     _attach_content_parts,
     _message_has_displayable_content,
@@ -218,6 +219,9 @@ def full_conversation(conversation_id):
 
 @bp.route('/import', methods=['POST'])
 def import_json():
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     file = request.files.get('file') or request.files.get('json_file')
     if not file:
         return 'No file uploaded', 400
@@ -240,6 +244,9 @@ def import_json():
 @bp.route('/conversation/<conversation_id>/pin', methods=['POST'])
 def toggle_pin(conversation_id):
     """Toggle pinned/favorite state for a conversation (#61). Stored in settings as JSON array."""
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     conn = db.get_db()
     if conn.execute('SELECT id FROM conversations WHERE id = ?', (conversation_id,)).fetchone() is None:
         return "Conversation not found", 404
@@ -257,6 +264,9 @@ def toggle_pin(conversation_id):
 
 @bp.route('/conversation/<conversation_id>/delete', methods=['POST'])
 def delete_conversation(conversation_id):
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     conn = db.get_db()
     conversation = conn.execute('SELECT id FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
     if not conversation:
@@ -385,6 +395,9 @@ def export_conversation_markdown(conversation_id):
 @bp.route('/toggle_view_mode', methods=['POST'])
 def toggle_view_mode():
     from flask import jsonify
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     current = db.get_setting('dev_mode', 'false')
     new_value = 'false' if current == 'true' else 'true'
     db.set_setting('dev_mode', new_value)
@@ -396,6 +409,9 @@ def toggle_view_mode():
 @bp.route('/toggle_dark_mode', methods=['POST'])
 def toggle_dark_mode():
     from flask import jsonify
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     current_mode = db.get_setting('dark_mode', 'false')
     new_mode = 'true' if current_mode == 'false' else 'false'
     db.set_setting('dark_mode', new_mode)
@@ -407,6 +423,9 @@ def toggle_dark_mode():
 @bp.route('/toggle_verbose_mode', methods=['POST'])
 def toggle_verbose_mode():
     from flask import jsonify
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     if request.args.get('temp') == 'true':
         session['override_verbose_mode'] = not session.get('override_verbose_mode', False)
         return jsonify({'success': True, 'verbose_mode': session.get('override_verbose_mode')})
@@ -461,6 +480,9 @@ def settings():
 
 @bp.route('/update_names', methods=['POST'])
 def update_names():
+    err = validate_csrf()
+    if err:
+        return err[0], err[1]
     user_name = request.form.get('user_name', 'User')
     assistant_name = request.form.get('assistant_name', 'Assistant')
 

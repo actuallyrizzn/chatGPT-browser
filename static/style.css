@@ -3,8 +3,8 @@
     --text-color: #212529;
     --navbar-bg: #343a40;
     --message-bg: #f8f9fa;
-    --message-user-bg: #e3f2fd;
-    --message-assistant-bg: #f5f5f5;
+    --message-user-bg: #d1e7fd;
+    --message-assistant-bg: #e9ecef;
     --border-color: #dee2e6;
     --code-bg: #f8f9fa;
     --blockquote-color: #6c757d;
@@ -17,7 +17,7 @@ body.dark {
     --text-color: #f8f9fa;
     --navbar-bg: #1a1d20;
     --message-bg: #343a40;
-    --message-user-bg: #1e3a5f;
+    --message-user-bg: #1a3a5c;
     --message-assistant-bg: #2d3238;
     --border-color: #495057;
     --code-bg: #343a40;
@@ -29,7 +29,14 @@ body.dark {
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     transition: background-color 0.3s, color 0.3s;
+}
+
+.conversation-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0;
 }
 
 .skip-link {
@@ -63,20 +70,69 @@ body {
 }
 
 .message {
-    margin-bottom: 1rem;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background-color: var(--message-bg);
+    margin-bottom: 1.25rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
 }
 
 .message.user {
-    background-color: var(--message-user-bg);
-    margin-left: 2rem;
+    flex-direction: row-reverse;
 }
 
 .message.assistant {
+    flex-direction: row;
+}
+
+.message .message-avatar {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.message.user .message-avatar {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.message.assistant .message-avatar {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.message.tool .message-avatar,
+.message.system .message-avatar {
+    opacity: 0.8;
+}
+
+.message-bubble {
+    max-width: 85%;
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
+    background-color: var(--message-bg);
+}
+
+.message.user .message-bubble {
+    background-color: var(--message-user-bg);
+    border-bottom-right-radius: 0.25rem;
+}
+
+.message.assistant .message-bubble {
     background-color: var(--message-assistant-bg);
-    margin-right: 2rem;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.message.tool .message-bubble,
+.message.system .message-bubble {
+    max-width: 90%;
+    opacity: 0.95;
 }
 
 .message.tool,
@@ -100,11 +156,15 @@ body {
 }
 
 .message-content {
-    line-height: 1.6;
+    line-height: 1.5;
 }
 
 .message-content p {
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
 }
 
 .message-content pre {
