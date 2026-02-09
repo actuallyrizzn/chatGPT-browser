@@ -52,11 +52,7 @@
             <div class="message-content">
                 {% for part in content %}
                     {% if part is not none and (part is not string or (part|trim)) %}
-                        {% if part is string %}
-                            {{ part|markdown|safe }}
-                        {% else %}
-                            <pre><code>{{ part|tojson(indent=2) }}</code></pre>
-                        {% endif %}
+                        {{ part|render_part(dev_mode) }}
                     {% endif %}
                 {% endfor %}
             </div>

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import markdown
 from markdown.extensions import fenced_code, tables
 import os
+import re
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -141,6 +142,56 @@ def markdown_filter(text):
     # Sanitize to prevent stored XSS (e.g. <script>, event handlers)
     safe_html = bleach.clean(raw_html, tags=ALLOWED_MD_TAGS, attributes=ALLOWED_MD_ATTRS, strip=True)
     return Markup(safe_html)
+
+def _render_content_part(part, dev_mode=False):
+    """Render a single message content part (string or dict) as safe HTML. Content-type dispatch for #35, #39."""
+    if part is None:
+        return Markup('')
+    if isinstance(part, str):
+        # Optional: in Nice mode, soften citation refs (turn0news1 -> [1]) for readability
+        if not dev_mode and part:
+            part = re.sub(r'turn0news(\d+)', r'[\1]', part)
+        return markdown_filter(part)
+    if not isinstance(part, dict):
+        return Markup(bleach.clean(str(part), tags=[], strip=True)) if str(part) else Markup('')
+    ct = part.get('content_type') or part.get('type') or ''
+    # Export format: {"type": "text", "text": "..."} — render the text as markdown
+    if ct == 'text':
+        return markdown_filter(part.get('text') or '')
+    # Image placeholder
+    if ct == 'image_asset_pointer':
+        w, h = part.get('width'), part.get('height')
+        size = f'{w}×{h}' if (w is not None and h is not None) else ''
+        return Markup(f'<span class="content-placeholder content-placeholder-image">[Image{(": " + size) if size else ""}]</span>')
+    # Audio transcription: show text as message content
+    if ct == 'audio_transcription':
+        text = part.get('text') or ''
+        out = markdown_filter(text)
+        if text.strip():
+            return Markup('<span class="content-placeholder content-placeholder-voice" aria-label="Voice">🎤 </span>') + out
+        return out
+    # Audio / video placeholders
+    if ct == 'audio_asset_pointer':
+        return Markup('<span class="content-placeholder content-placeholder-audio">[Audio]</span>')
+    if ct in ('real_time_user_audio_video_asset_pointer', 'video_container_asset_pointer'):
+        return Markup('<span class="content-placeholder content-placeholder-video">[Video]</span>')
+    # Citation / navlist / search refs (#39)
+    if ct in ('navlist', 'citation', 'search_result') or 'navlist' in str(part.get('type', '')):
+        return Markup('<span class="content-placeholder content-placeholder-citation">[Citation]</span>')
+    # Tool / other structured: dev shows JSON, nice shows short label
+    if dev_mode:
+        try:
+            raw = json.dumps(part, indent=2)
+            safe = bleach.clean(raw, tags=[], strip=True)
+            return Markup(f'<pre class="content-json"><code>{safe}</code></pre>')
+        except (TypeError, ValueError):
+            return Markup('<span class="content-placeholder">[Content]</span>')
+    return Markup('<span class="content-placeholder">[Content]</span>')
+
+@app.template_filter('render_part')
+def render_part_filter(part, dev_mode=False):
+    """Template filter: render one message content part (string or dict) with content-type dispatch."""
+    return _render_content_part(part, dev_mode=bool(dev_mode))
 
 @app.route('/')
 def index():
