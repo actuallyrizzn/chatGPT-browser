@@ -214,6 +214,16 @@ class TestToggleRoutes:
         assert r.status_code in (302, 303)
         assert r.location == "http://localhost/settings" or "settings" in r.location
 
+    def test_toggle_dark_mode_returns_json_when_ajax(self, client_with_db):
+        r = client_with_db.post(
+            "/toggle_dark_mode",
+            headers={"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"},
+        )
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["success"] is True
+        assert "dark_mode" in data
+
     def test_toggle_verbose_mode_permanent(self, client_with_db):
         r = client_with_db.post("/toggle_verbose_mode")
         assert r.status_code == 200

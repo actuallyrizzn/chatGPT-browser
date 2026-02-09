@@ -535,6 +535,8 @@ def toggle_dark_mode():
     current_mode = get_setting('dark_mode', 'false')
     new_mode = 'true' if current_mode == 'false' else 'false'
     set_setting('dark_mode', new_mode)
+    if request.accept_mimetypes.best_match(['application/json', 'text/html']) == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'dark_mode': new_mode == 'true'})
     return redirect(request.referrer or url_for('index'))
 
 @app.route('/toggle_verbose_mode', methods=['POST'])
