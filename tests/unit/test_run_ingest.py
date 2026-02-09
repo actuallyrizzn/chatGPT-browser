@@ -20,8 +20,9 @@ def test_run_ingest_file_not_found(capsys, monkeypatch):
 
 
 def test_run_ingest_success(tmp_path, monkeypatch, sample_chatgpt_export):
-    """run_ingest loads a JSON file and imports via app.import_conversations_data."""
+    """run_ingest loads a JSON file and imports via db.import_conversations_data."""
     import app as app_module
+    import db as db_module
     import run_ingest as run_ingest_module
 
     json_path = tmp_path / "conversations.json"
@@ -29,7 +30,7 @@ def test_run_ingest_success(tmp_path, monkeypatch, sample_chatgpt_export):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["run_ingest.py", str(json_path)])
     db_path = tmp_path / "chatgpt.db"
-    original_get_db = app_module.get_db
+    original_get_db = db_module.get_db
 
     def get_test_db():
         import sqlite3
@@ -37,12 +38,13 @@ def test_run_ingest_success(tmp_path, monkeypatch, sample_chatgpt_export):
         conn.row_factory = sqlite3.Row
         return conn
 
-    app_module.get_db = get_test_db
-    app_module.init_db()
+    db_module.get_db = get_test_db
+    with app_module.app.app_context():
+        app_module.init_db()
 
     try:
         run_ingest_module.main()
-        conn = app_module.get_db()
+        conn = db_module.get_db()
         row = conn.execute(
             "SELECT id FROM conversations WHERE id = ?",
             ("test-conversation-123",),
@@ -50,12 +52,13 @@ def test_run_ingest_success(tmp_path, monkeypatch, sample_chatgpt_export):
         conn.close()
         assert row is not None
     finally:
-        app_module.get_db = original_get_db
+        db_module.get_db = original_get_db
 
 
 def test_run_ingest_init_db_flag(tmp_path, monkeypatch, sample_chatgpt_export):
     """run_ingest --init-db initializes DB before ingest."""
     import app as app_module
+    import db as db_module
     import run_ingest as run_ingest_module
 
     json_path = tmp_path / "conversations.json"
@@ -63,7 +66,7 @@ def test_run_ingest_init_db_flag(tmp_path, monkeypatch, sample_chatgpt_export):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["run_ingest.py", "--init-db", str(json_path)])
     db_path = tmp_path / "chatgpt.db"
-    original_get_db = app_module.get_db
+    original_get_db = db_module.get_db
 
     def get_test_db():
         import sqlite3
@@ -71,11 +74,11 @@ def test_run_ingest_init_db_flag(tmp_path, monkeypatch, sample_chatgpt_export):
         conn.row_factory = sqlite3.Row
         return conn
 
-    app_module.get_db = get_test_db
+    db_module.get_db = get_test_db
 
     try:
         run_ingest_module.main()
-        conn = app_module.get_db()
+        conn = db_module.get_db()
         row = conn.execute(
             "SELECT id FROM conversations WHERE id = ?",
             ("test-conversation-123",),
@@ -83,4 +86,4 @@ def test_run_ingest_init_db_flag(tmp_path, monkeypatch, sample_chatgpt_export):
         conn.close()
         assert row is not None
     finally:
-        app_module.get_db = original_get_db
+        db_module.get_db = original_get_db

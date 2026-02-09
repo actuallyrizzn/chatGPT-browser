@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content-type dispatch** (fixes #35, #39): Message parts render by type: image/audio/video as placeholders; audio_transcription text extracted; export `type: text` supported; navlist/citation as [Citation]; turn0news refs → [1],[2] in Nice mode; dev mode shows JSON for unknown types. Single `render_part` filter used in both conversation templates; unit tests added.
 - **Settings save feedback** (fixes #50): After saving names, redirect to settings with flash "Settings saved."; JS toggles (view mode, verbose) show toast "Settings saved." or "Failed to save." for 3s.
 - **Dark mode no reload** (fixes #51): Navbar dark mode uses fetch POST + JSON; toggles body class and button label in-place without full page reload. Preference still persisted in settings.
+- **Split monolithic app** (fixes #21): Refactored into db.py (get_db, init_db, settings, import_conversations_data), filters.py (template filters + render_part), content_helpers.py (message_row_to_dict, _attach_content_parts, _message_has_displayable_content), routes/main.py (Blueprint with all routes). app.py is minimal: app creation, config, teardown, filter/blueprint registration, 413 handler. Templates use main.* url_for; init_db/run_ingest and tests updated.
 
 ## [1.3.6] - 2026-02-08
 

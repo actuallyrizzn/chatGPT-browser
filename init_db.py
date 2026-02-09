@@ -4,10 +4,13 @@
 import argparse
 import os
 import sys
-from app import init_db
+
+from app import app
+from db import init_db
+
 
 def main():
-    from app import DATABASE_PATH
+    from db import DATABASE_PATH
     parser = argparse.ArgumentParser(description="Initialize or reset the ChatGPT Browser database.")
     parser.add_argument(
         "--force", "--reset",
@@ -22,7 +25,6 @@ def main():
         sys.exit(1)
     if os.path.exists(DATABASE_PATH):
         os.remove(DATABASE_PATH)
-    from app import app
     with app.app_context():
         init_db()
     print("Database initialized successfully!")

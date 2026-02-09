@@ -16,7 +16,7 @@
         <div class="card mb-3">
             <div class="card-body">
                 <h5 class="card-title">
-                    <a href="{{ url_for('conversation', conversation_id=conversation.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('main.conversation', conversation_id=conversation.id) }}" class="text-decoration-none">
                         {{ conversation.title }}
                     </a>
                 </h5>
@@ -46,11 +46,11 @@ Current Node: {{ conversation.current_node }}</pre>
     <nav aria-label="Conversation pagination" class="mt-4">
         <ul class="pagination justify-content-center">
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="{% if page > 1 %}{{ url_for('index', page=page-1, per_page=per_page) }}{% else %}#{% endif %}">Previous</a>
+                <a class="page-link" href="{% if page > 1 %}{{ url_for('main.index', page=page-1, per_page=per_page) }}{% else %}#{% endif %}">Previous</a>
             </li>
             <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{% if page < total_pages %}{{ url_for('index', page=page+1, per_page=per_page) }}{% else %}#{% endif %}">Next</a>
+                <a class="page-link" href="{% if page < total_pages %}{{ url_for('main.index', page=page+1, per_page=per_page) }}{% else %}#{% endif %}">Next</a>
             </li>
         </ul>
     </nav>

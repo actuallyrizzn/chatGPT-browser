@@ -20,7 +20,7 @@
                 <h4 class="mb-0">Settings</h4>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('update_names') }}" method="POST">
+                <form action="{{ url_for('main.update_names') }}" method="POST">
                     <div class="mb-3">
                         <label for="user_name" class="form-label">Your Name</label>
                         <input type="text" class="form-control" id="user_name" name="user_name" value="{{ user_name }}">
@@ -61,7 +61,7 @@
                 <h4 class="mb-0">Import Conversation</h4>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('import_json') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ url_for('main.import_json') }}" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="import_file" class="form-label">Choose JSON File</label>
                         <input type="file" class="form-control" id="import_file" name="file" accept=".json">

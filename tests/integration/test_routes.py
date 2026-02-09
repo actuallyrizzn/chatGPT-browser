@@ -287,8 +287,9 @@ class TestImportRoute:
 
     def test_import_generic_exception_400(self, client_with_db, sample_chatgpt_export):
         """Import returns 400 when import_conversations_data raises (covers except Exception)."""
+        import db as db_module
         with patch.object(
-            app_module, "import_conversations_data", side_effect=RuntimeError("db error")
+            db_module, "import_conversations_data", side_effect=RuntimeError("db error")
         ):
             payload = json.dumps(sample_chatgpt_export).encode("utf-8")
             r = client_with_db.post(

@@ -13,9 +13,11 @@ import time
 
 import pytest
 
-# Import module so we can patch get_db on the module (app.get_db is module-level)
+# Import app for test client; patch db.get_db for test database
 import app as app_module
-from app import app, g, get_db, init_db
+from app import app, init_db
+from flask import g
+import db as db_module
 
 
 @pytest.fixture
@@ -29,9 +31,9 @@ def client():
 
 @pytest.fixture
 def test_db():
-    """Create a temporary test database and patch app module get_db."""
+    """Create a temporary test database and patch db.get_db."""
     db_fd, db_path = tempfile.mkstemp(suffix=".db")
-    original_get_db = app_module.get_db
+    original_get_db = db_module.get_db
 
     def get_test_db():
         try:
@@ -45,7 +47,8 @@ def test_db():
             conn.row_factory = sqlite3.Row
             return conn
 
-    app_module.get_db = get_test_db
+    db_module.get_db = get_test_db
+    app_module.get_db = get_test_db  # so tests that call app.get_db() get test db
     with app.app_context():
         init_db()
 
@@ -56,6 +59,7 @@ def test_db():
         os.unlink(db_path)
     except OSError:
         pass
+    db_module.get_db = original_get_db
     app_module.get_db = original_get_db
 
 

@@ -9,7 +9,8 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-from app import app, import_conversations_data, init_db
+from app import app
+from db import import_conversations_data, init_db
 
 
 def main():
@@ -30,7 +31,8 @@ def main():
         sys.exit(1)
 
     if args.init_db:
-        init_db()
+        with app.app_context():
+            init_db()
         print("Database initialized.")
 
     print(f"Loading {args.path}...")

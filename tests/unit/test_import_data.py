@@ -130,6 +130,7 @@ class TestImportConversationsData:
     def test_import_commits_in_batches(self, client_with_db):
         """Import commits every IMPORT_BATCH_SIZE and at end so partial progress is persisted (fixes #18)."""
         from unittest.mock import patch
+        import db as db_module
 
         n = IMPORT_BATCH_SIZE + 5
         data = [
@@ -146,7 +147,6 @@ class TestImportConversationsData:
 
         with app_module.app.app_context():
             conn = app_module.get_db()
-            # Wrap connection so commit is counted (sqlite3.Connection.commit is read-only)
             class CommitCountingConn:
                 def __getattr__(self, name):
                     return getattr(conn, name)
@@ -154,7 +154,7 @@ class TestImportConversationsData:
                     commit_count[0] += 1
                     conn.commit()
             wrapper = CommitCountingConn()
-            with patch.object(app_module, "get_db", return_value=wrapper):
+            with patch.object(db_module, "get_db", return_value=wrapper):
                 app_module.import_conversations_data(data)
 
         assert commit_count[0] >= 2, "Expected at least batch commit and final commit"
