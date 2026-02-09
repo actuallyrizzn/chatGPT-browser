@@ -6,6 +6,9 @@ import pytest
 
 import app as app_module
 
+# Batch size used in app.import_conversations_data for commit frequency
+IMPORT_BATCH_SIZE = getattr(app_module, "IMPORT_BATCH_SIZE", 50)
+
 
 class TestImportConversationsData:
     """Tests for import_conversations_data with test_db."""
@@ -123,6 +126,42 @@ class TestImportConversationsData:
         assert meta is not None
         assert meta["model_slug"] == "gpt-4"
         assert meta["is_complete"] == 1
+
+    def test_import_commits_in_batches(self, client_with_db):
+        """Import commits every IMPORT_BATCH_SIZE and at end so partial progress is persisted (fixes #18)."""
+        from unittest.mock import patch
+
+        n = IMPORT_BATCH_SIZE + 5
+        data = [
+            {
+                "id": f"conv-batch-{i}",
+                "title": f"Conv {i}",
+                "create_time": 1640995200.0,
+                "update_time": 1640995200.0,
+                "mapping": {},
+            }
+            for i in range(n)
+        ]
+        commit_count = [0]
+
+        with app_module.app.app_context():
+            conn = app_module.get_db()
+            # Wrap connection so commit is counted (sqlite3.Connection.commit is read-only)
+            class CommitCountingConn:
+                def __getattr__(self, name):
+                    return getattr(conn, name)
+                def commit(self):
+                    commit_count[0] += 1
+                    conn.commit()
+            wrapper = CommitCountingConn()
+            with patch.object(app_module, "get_db", return_value=wrapper):
+                app_module.import_conversations_data(data)
+
+        assert commit_count[0] >= 2, "Expected at least batch commit and final commit"
+        conn = app_module.get_db()
+        count = conn.execute("SELECT COUNT(*) as c FROM conversations").fetchone()["c"]
+        conn.close()
+        assert count == n
 
 
 class TestInitDb:

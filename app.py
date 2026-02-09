@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import markdown
 from markdown.extensions import fenced_code, tables
 import os
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.environ.get('DATABASE_PATH') or os.path.join(BASE_DIR, 'chatgpt.db')
@@ -363,12 +364,17 @@ def _message_has_displayable_content(message):
             return True  # dict parts are shown (e.g. as JSON) so consider as content
     return False
 
+IMPORT_BATCH_SIZE = 50  # Commit every N conversations for partial progress and lower memory use
+
 def import_conversations_data(data):
-    """Import a list of conversation dicts into the database. Used by both web upload and CLI ingest."""
+    """Import a list of conversation dicts into the database. Used by both web upload and CLI ingest.
+    Commits in batches (IMPORT_BATCH_SIZE) so partial progress is persisted if the process fails."""
     if not isinstance(data, list):
         data = [data]
-    print(f"Importing {len(data)} conversations...")
+    total = len(data)
+    print(f"Importing {total} conversations...")
     conn = get_db()
+    imported = 0
     for conversation in data:
         try:
             # Extract conversation data
@@ -437,6 +443,10 @@ def import_conversations_data(data):
                 except Exception as e:
                     print(f"Error processing message {message_id}: {str(e)}")
                     continue
+            imported += 1
+            if imported % IMPORT_BATCH_SIZE == 0:
+                conn.commit()
+                print(f"Imported {imported} / {total} conversations", file=sys.stderr)
         except Exception as e:
             print(f"Error processing conversation {conversation_id}: {str(e)}")
             continue

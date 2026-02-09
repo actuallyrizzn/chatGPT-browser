@@ -28,8 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Accessibility** (fixes #63): Skip-to-main-content link (visible on focus), main landmark with id=main-content, aria-labels on nav toggles and buttons.
 - **Database path** (fixes #20): DB path is BASE_DIR/chatgpt.db or DATABASE_PATH env; init_db uses same path. Documented for deployments.
 - **init_db safety** (fixes #26): init_db.py refuses to run if DB exists unless --force (or --reset) is given; prevents accidental data loss.
-- **DB connection cleanup** (fixes #16): get_db() uses Flask g per request and teardown_appcontext closes it; outside app context returns a new conn (callers close via _close_if_not_from_g). Prevents connection leaks on errors.
+- **DB connection cleanup** (fixes #16, #17): get_db() uses Flask g per request and teardown_appcontext closes it; outside app context returns a new conn (callers close via _close_if_not_from_g). get_setting/set_setting no longer close the request-scoped connection, so multiple calls per request reuse one connection.
 - **update_time ordering** (fixes #47): Index query uses ORDER BY CAST(update_time AS REAL) DESC for correct numeric ordering when stored as TEXT.
+- **Import batch commits** (fixes #18): import_conversations_data commits every IMPORT_BATCH_SIZE (50) conversations and at end; progress printed to stderr. Partial progress persisted if process fails.
 
 ## [1.3.6] - 2026-02-08
 
