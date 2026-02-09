@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS message_children (
     FOREIGN KEY (child_id) REFERENCES messages(id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_conversations_update_time ON conversations(update_time);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
+CREATE INDEX IF NOT EXISTS idx_message_children_parent_id ON message_children(parent_id);
+CREATE INDEX IF NOT EXISTS idx_message_children_child_id ON message_children(child_id);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
