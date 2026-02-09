@@ -10,39 +10,40 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body {% if dark_mode %}class="dark"{% endif %}>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4" aria-label="Main navigation">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">ChatGPT Browser</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Open menu" aria-expanded="false" aria-controls="navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <form method="POST" action="{{ url_for('toggle_dark_mode') }}" class="d-inline">
-                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0">
+                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0" aria-label="Toggle dark mode">
                                 {% if dark_mode %}
-                                    <i class="bi bi-sun"></i> Light Mode
+                                    <i class="bi bi-sun" aria-hidden="true"></i> Light Mode
                                 {% else %}
-                                    <i class="bi bi-moon"></i> Dark Mode
+                                    <i class="bi bi-moon" aria-hidden="true"></i> Dark Mode
                                 {% endif %}
                             </button>
                         </form>
                     </li>
                     <li class="nav-item">
                         <form method="POST" action="{{ url_for('toggle_view_mode', redirect=1) }}" class="d-inline">
-                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0">
+                            <button type="submit" class="nav-link border-0 bg-transparent text-light p-0" aria-label="Toggle view mode (Nice or Dev)">
                                 {% if dev_mode %}
-                                    <i class="bi bi-code-slash"></i> Dev View
+                                    <i class="bi bi-code-slash" aria-hidden="true"></i> Dev View
                                 {% else %}
-                                    <i class="bi bi-eye"></i> Nice View
+                                    <i class="bi bi-eye" aria-hidden="true"></i> Nice View
                                 {% endif %}
                             </button>
                         </form>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('settings') }}">
-                            <i class="bi bi-gear"></i> Settings
+                        <a class="nav-link" href="{{ url_for('settings') }}" aria-label="Settings">
+                            <i class="bi bi-gear" aria-hidden="true"></i> Settings
                         </a>
                     </li>
                 </ul>
@@ -50,9 +51,9 @@
         </div>
     </nav>
 
-    <div class="container">
+    <main id="main-content" class="container" tabindex="-1">
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

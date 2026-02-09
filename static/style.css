@@ -32,6 +32,27 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
+.skip-link {
+    position: absolute;
+    top: -3rem;
+    left: 0;
+    padding: 0.5rem 1rem;
+    background: var(--navbar-bg);
+    color: #fff;
+    z-index: 9999;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0;
+}
+.skip-link:focus {
+    top: 0;
+}
+
+@media (min-width: 992px) {
+    .navbar-collapse {
+        display: flex !important;
+    }
+}
+
 .navbar {
     background-color: var(--navbar-bg) !important;
 }

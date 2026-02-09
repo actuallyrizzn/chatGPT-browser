@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Navbar view mode** (fixes #49): View mode indicator is now a POST form that toggles and redirects; no longer a non-clickable label.
 - **Database indexes** (fixes #15): Added indexes on conversations(update_time), messages(conversation_id), messages(parent_id), message_children(parent_id, child_id) in schema.sql.
 - **Foreign keys** (fixes #19): get_db() now runs PRAGMA foreign_keys = ON so SQLite enforces declared FKs.
+- **Navbar desktop** (fixes #62): Media query at 992px forces navbar-collapse to display so nav is visible on desktop.
+- **Accessibility** (fixes #63): Skip-to-main-content link (visible on focus), main landmark with id=main-content, aria-labels on nav toggles and buttons.
 
 ## [1.3.6] - 2026-02-08
 
