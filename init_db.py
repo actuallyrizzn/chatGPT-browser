@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # ChatGPT Browser - https://github.com/actuallyrizzn/chatGPT-browser
 # Copyright (C) 2024-2025. Licensed under the GNU AGPLv3. See LICENSE.
-from app import init_db
 import os
+from app import init_db
 
 def main():
+    from app import DATABASE_PATH
     # Remove existing database if it exists
-    if os.path.exists('chatgpt.db'):
-        os.remove('chatgpt.db')
-    
+    if os.path.exists(DATABASE_PATH):
+        os.remove(DATABASE_PATH)
     # Initialize fresh database
     init_db()
     print("Database initialized successfully!")

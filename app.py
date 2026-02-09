@@ -10,6 +10,9 @@ import markdown
 from markdown.extensions import fenced_code, tables
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.environ.get('DATABASE_PATH') or os.path.join(BASE_DIR, 'chatgpt.db')
+
 app = Flask(__name__)
 
 # Secret key: prefer SECRET_KEY env, then .secret_key file, else urandom (sessions invalidated on restart)
@@ -56,7 +59,7 @@ def tojson(value, indent=None):
         return str(value)
 
 def get_db():
-    conn = sqlite3.connect('chatgpt.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     conn.execute('PRAGMA foreign_keys = ON')
     conn.row_factory = sqlite3.Row
     return conn

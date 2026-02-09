@@ -7,14 +7,15 @@ import pytest
 
 def test_init_db_main_creates_db(tmp_path, monkeypatch):
     """Running init_db.main() with a temp dir creates and inits the DB."""
+    import app as app_module
+    db_path = tmp_path / "chatgpt.db"
+    monkeypatch.setattr(app_module, "DATABASE_PATH", str(db_path))
+    db_path.unlink(missing_ok=True)
     import init_db as init_db_module
-    monkeypatch.chdir(tmp_path)
-    # Ensure no existing chatgpt.db
-    (tmp_path / "chatgpt.db").unlink(missing_ok=True)
     init_db_module.main()
-    assert (tmp_path / "chatgpt.db").exists()
+    assert db_path.exists()
     import sqlite3
-    conn = sqlite3.connect(tmp_path / "chatgpt.db")
+    conn = sqlite3.connect(db_path)
     tables = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'"
     ).fetchall()
@@ -24,12 +25,14 @@ def test_init_db_main_creates_db(tmp_path, monkeypatch):
 
 def test_init_db_main_removes_existing_db(tmp_path, monkeypatch):
     """init_db.main() removes existing chatgpt.db and recreates it."""
+    import app as app_module
+    db_path = tmp_path / "chatgpt.db"
+    monkeypatch.setattr(app_module, "DATABASE_PATH", str(db_path))
     import init_db as init_db_module
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "chatgpt.db").write_bytes(b"garbage")
+    db_path.write_bytes(b"garbage")
     init_db_module.main()
     # Should be a valid SQLite DB, not our garbage
     import sqlite3
-    conn = sqlite3.connect(tmp_path / "chatgpt.db")
+    conn = sqlite3.connect(db_path)
     conn.execute("SELECT 1 FROM conversations LIMIT 1")
     conn.close()
