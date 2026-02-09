@@ -21,7 +21,7 @@
 
     <form method="GET" action="{{ url_for('main.index') }}" class="mb-4">
         <div class="input-group">
-            <input type="search" name="q" class="form-control" placeholder="Search by title..." value="{{ q or '' }}" aria-label="Search conversations">
+            <input type="search" name="q" id="search-input" class="form-control" placeholder="Search by title..." value="{{ q or '' }}" aria-label="Search conversations">
             <input type="hidden" name="per_page" value="{{ per_page }}">
             <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-search"></i> Search</button>
         </div>
@@ -32,14 +32,20 @@
         <div class="card mb-3">
             <div class="card-body d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
-                    <h5 class="card-title">
-                        <a href="{{ url_for('main.conversation', conversation_id=conversation.id) }}" class="text-decoration-none">
-                            {{ conversation.title }}
-                        </a>
-                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <form method="POST" action="{{ url_for('main.toggle_pin', conversation_id=conversation.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-link btn-sm p-0 text-warning border-0" aria-label="{{ 'Unpin' if conversation.id in pinned_ids else 'Pin' }} conversation">{% if conversation.id in pinned_ids %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}</button>
+                        </form>
+                        <h5 class="card-title mb-0">
+                            <a href="{{ url_for('main.conversation', conversation_id=conversation.id) }}" class="text-decoration-none">
+                                {{ conversation.title }}
+                            </a>
+                        </h5>
+                    </div>
                     <p class="card-text mb-0">
                         <small class="text-muted">
-                            Last updated: {{ conversation.update_time|datetime }}
+                            {{ conversation.message_count }} message{{ 's' if (conversation.message_count or 0) != 1 else '' }}
+                            · <span title="Last updated: {{ conversation.update_time|datetime }}">{{ conversation.update_time|relativetime }}</span>
                         </small>
                     </p>
                     {% if dev_mode %}

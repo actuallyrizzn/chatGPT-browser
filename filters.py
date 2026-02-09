@@ -44,6 +44,35 @@ def format_datetime(timestamp):
         return '—'
 
 
+def relativetime(timestamp):
+    """Format timestamp as relative time (e.g. '2 hours ago', 'Yesterday') for #52."""
+    if timestamp is None:
+        return '—'
+    try:
+        if isinstance(timestamp, str):
+            timestamp = float(timestamp)
+        now = datetime.now(tz=timezone.utc).timestamp()
+        diff = now - timestamp
+        if diff < 0:
+            diff = 0
+        if diff < 60:
+            return 'just now'
+        if diff < 3600:
+            m = int(diff / 60)
+            return f'{m} min ago' if m != 1 else '1 min ago'
+        if diff < 86400:
+            h = int(diff / 3600)
+            return f'{h} hour{"s" if h != 1 else ""} ago'
+        if diff < 2 * 86400:
+            return 'Yesterday'
+        if diff < 7 * 86400:
+            d = int(diff / 86400)
+            return f'{d} days ago'
+        return format_datetime(timestamp)
+    except (ValueError, TypeError):
+        return '—'
+
+
 def json_loads_filter(value):
     if value is None:
         return []
@@ -111,6 +140,7 @@ def register_filters(app):
     app.template_filter('fromjson')(fromjson)
     app.template_filter('tojson')(tojson)
     app.template_filter('datetime')(format_datetime)
+    app.template_filter('relativetime')(relativetime)
     app.template_filter('json_loads')(json_loads_filter)
     app.template_filter('markdown')(markdown_filter)
     app.template_filter('render_part')(render_part_filter)

@@ -327,6 +327,29 @@ class TestDeleteConversation:
         assert r.status_code == 404
 
 
+class TestStatsRoute:
+    def test_stats_200(self, client_with_db):
+        r = client_with_db.get("/stats")
+        assert r.status_code == 200
+        assert b"Statistics" in r.data or b"conversation" in r.data.lower()
+
+    def test_stats_shows_totals_after_import(self, seeded_db):
+        r = seeded_db.get("/stats")
+        assert r.status_code == 200
+        assert b"1" in r.data  # at least one conversation
+
+
+class TestPinConversation:
+    def test_pin_404_when_not_found(self, client_with_db):
+        r = client_with_db.post("/conversation/nonexistent-id/pin", follow_redirects=True)
+        assert r.status_code == 404
+
+    def test_pin_toggle_redirects_to_index(self, seeded_db):
+        r = seeded_db.post("/conversation/test-conversation-123/pin", follow_redirects=True)
+        assert r.status_code == 200
+        assert b"ChatGPT" in r.data or b"conversation" in r.data.lower()
+
+
 class TestSearch:
     def test_index_search_filters_by_title(self, seeded_db):
         r = seeded_db.get("/?q=Test")
@@ -335,3 +358,29 @@ class TestSearch:
         r2 = seeded_db.get("/?q=NonExistentTitleXYZ")
         assert r2.status_code == 200
         assert b"No conversations" in r2.data or b"0 conversation" in r2.data
+
+
+class TestExportConversation:
+    def test_export_json_404_when_not_found(self, client_with_db):
+        r = client_with_db.get("/conversation/nonexistent-id/export/json")
+        assert r.status_code == 404
+
+    def test_export_json_200_and_structure(self, seeded_db):
+        r = seeded_db.get("/conversation/test-conversation-123/export/json")
+        assert r.status_code == 200
+        assert r.headers.get("Content-Disposition", "").startswith("attachment")
+        data = json.loads(r.data)
+        assert data.get("id") == "test-conversation-123"
+        assert "title" in data and "mapping" in data
+        assert isinstance(data["mapping"], dict)
+
+    def test_export_markdown_404_when_not_found(self, client_with_db):
+        r = client_with_db.get("/conversation/nonexistent-id/export/markdown")
+        assert r.status_code == 404
+
+    def test_export_markdown_200_and_content(self, seeded_db):
+        r = seeded_db.get("/conversation/test-conversation-123/export/markdown")
+        assert r.status_code == 200
+        assert "attachment" in (r.headers.get("Content-Disposition") or "")
+        assert b"Test Conversation" in r.data or b"#" in r.data
+        assert b"User" in r.data or b"Assistant" in r.data

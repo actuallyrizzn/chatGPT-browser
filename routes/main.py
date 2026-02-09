@@ -5,7 +5,7 @@
 
 import json
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
 
 import db
 from content_helpers import (
@@ -33,19 +33,21 @@ def index():
         ).fetchone()[0]
         offset = (page - 1) * per_page
         conversations = conn.execute('''
-            SELECT id, title, create_time, update_time
-            FROM conversations
-            WHERE title LIKE ?
-            ORDER BY CAST(update_time AS REAL) DESC
+            SELECT c.id, c.title, c.create_time, c.update_time,
+                   (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count
+            FROM conversations c
+            WHERE c.title LIKE ?
+            ORDER BY CAST(c.update_time AS REAL) DESC
             LIMIT ? OFFSET ?
         ''', ('%' + q + '%', per_page, offset)).fetchall()
     else:
         total = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
         offset = (page - 1) * per_page
         conversations = conn.execute('''
-            SELECT id, title, create_time, update_time
-            FROM conversations
-            ORDER BY CAST(update_time AS REAL) DESC
+            SELECT c.id, c.title, c.create_time, c.update_time,
+                   (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count
+            FROM conversations c
+            ORDER BY CAST(c.update_time AS REAL) DESC
             LIMIT ? OFFSET ?
         ''', (per_page, offset)).fetchall()
     total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
@@ -54,6 +56,10 @@ def index():
     dark_mode = db.get_setting('dark_mode', 'false') == 'true'
     user_name = db.get_setting('user_name', 'User')
     assistant_name = db.get_setting('assistant_name', 'Assistant')
+    try:
+        pinned_ids = json.loads(db.get_setting('pinned_conversation_ids', '[]'))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pinned_ids = []
     return render_template('index.html',
                          conversations=conversations,
                          page=page,
@@ -61,6 +67,7 @@ def index():
                          total=total,
                          total_pages=total_pages,
                          q=q,
+                         pinned_ids=pinned_ids,
                          dev_mode=dev_mode,
                          dark_mode=dark_mode,
                          user_name=user_name,
@@ -230,6 +237,24 @@ def import_json():
         return f'Error importing file: {str(e)}', 400
 
 
+@bp.route('/conversation/<conversation_id>/pin', methods=['POST'])
+def toggle_pin(conversation_id):
+    """Toggle pinned/favorite state for a conversation (#61). Stored in settings as JSON array."""
+    conn = db.get_db()
+    if conn.execute('SELECT id FROM conversations WHERE id = ?', (conversation_id,)).fetchone() is None:
+        return "Conversation not found", 404
+    try:
+        pinned = json.loads(db.get_setting('pinned_conversation_ids', '[]'))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pinned = []
+    if conversation_id in pinned:
+        pinned = [x for x in pinned if x != conversation_id]
+    else:
+        pinned = list(pinned) + [conversation_id]
+    db.set_setting('pinned_conversation_ids', json.dumps(pinned))
+    return redirect(request.referrer or url_for('main.index'))
+
+
 @bp.route('/conversation/<conversation_id>/delete', methods=['POST'])
 def delete_conversation(conversation_id):
     conn = db.get_db()
@@ -243,6 +268,118 @@ def delete_conversation(conversation_id):
     conn.commit()
     flash('Conversation deleted.')
     return redirect(url_for('main.index'))
+
+
+def _build_export_mapping(conn, conversation_id):
+    """Build ChatGPT-style mapping for one conversation (id -> { message, parent, children })."""
+    messages = conn.execute('''
+        SELECT m.id, m.role, m.content, m.create_time, m.update_time, m.parent_id,
+               mm.message_type, mm.model_slug, mm.citations, mm.content_references,
+               mm.finish_details, mm.is_complete, mm.request_id, mm.timestamp_,
+               mm.message_source, mm.serialization_metadata
+        FROM messages m
+        LEFT JOIN message_metadata mm ON m.id = mm.message_id
+        WHERE m.conversation_id = ?
+        ORDER BY m.create_time
+    ''', (conversation_id,)).fetchall()
+    children_map = {}
+    for cr in conn.execute(
+        'SELECT parent_id, child_id FROM message_children WHERE parent_id IN (SELECT id FROM messages WHERE conversation_id = ?)',
+        (conversation_id,),
+    ).fetchall():
+        cr = dict(cr)
+        children_map.setdefault(cr['parent_id'], []).append(cr['child_id'])
+    mapping = {}
+    for row in messages:
+        m = dict(row)
+        mid = m['id']
+        try:
+            parts = json.loads(m['content']) if m['content'] else []
+        except (TypeError, ValueError, json.JSONDecodeError):
+            parts = []
+        meta = {}
+        if m.get('message_type') is not None:
+            meta = {
+                'message_type': m.get('message_type') or '',
+                'model_slug': m.get('model_slug') or '',
+                'citations': json.loads(m['citations']) if m.get('citations') else [],
+                'content_references': json.loads(m['content_references']) if m.get('content_references') else [],
+                'finish_details': json.loads(m['finish_details']) if m.get('finish_details') else {},
+                'is_complete': bool(m.get('is_complete')),
+                'request_id': m.get('request_id') or '',
+                'timestamp': m.get('timestamp_') or '',
+                'message_source': m.get('message_source') or '',
+                'serialization_metadata': json.loads(m['serialization_metadata']) if m.get('serialization_metadata') else {},
+            }
+        mapping[mid] = {
+            'message': {
+                'author': {'role': m['role'] or ''},
+                'content': {'parts': parts},
+                'create_time': m['create_time'],
+                'update_time': m['update_time'],
+                **({'metadata': meta} if meta else {}),
+            },
+            'parent': m['parent_id'] or '',
+            'children': children_map.get(mid, []),
+        }
+    return mapping
+
+
+@bp.route('/conversation/<conversation_id>/export/json')
+def export_conversation_json(conversation_id):
+    conn = db.get_db()
+    conversation = conn.execute('SELECT id, create_time, update_time, title FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
+    if not conversation:
+        return "Conversation not found", 404
+    payload = {
+        'id': conversation['id'],
+        'create_time': conversation['create_time'],
+        'update_time': conversation['update_time'],
+        'title': conversation['title'],
+        'mapping': _build_export_mapping(conn, conversation_id),
+    }
+    resp = make_response(json.dumps(payload, indent=2))
+    resp.headers['Content-Type'] = 'application/json; charset=utf-8'
+    resp.headers['Content-Disposition'] = f'attachment; filename="conversation-{conversation_id[:20]}.json"'
+    return resp
+
+
+@bp.route('/conversation/<conversation_id>/export/markdown')
+def export_conversation_markdown(conversation_id):
+    conn = db.get_db()
+    conversation = conn.execute('SELECT id, title FROM conversations WHERE id = ?', (conversation_id,)).fetchone()
+    if not conversation:
+        return "Conversation not found", 404
+    messages = conn.execute('''
+        SELECT role, content, create_time
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY create_time
+    ''', (conversation_id,)).fetchall()
+    lines = [f"# {conversation['title']}", ""]
+    for m in messages:
+        role = (m['role'] or 'user').capitalize()
+        try:
+            parts = json.loads(m['content']) if m['content'] else []
+        except (TypeError, ValueError, json.JSONDecodeError):
+            parts = [m['content'] or '']
+        text_parts = []
+        for p in parts:
+            if isinstance(p, str):
+                text_parts.append(p)
+            elif isinstance(p, dict) and (p.get('content_type') or p.get('type')) == 'text':
+                text_parts.append(p.get('text') or '')
+        body = '\n'.join(text_parts).strip()
+        if body:
+            lines.append(f"**{role}:**")
+            lines.append("")
+            lines.append(body)
+            lines.append("")
+    md = '\n'.join(lines)
+    resp = make_response(md)
+    resp.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    resp.headers['Content-Disposition'] = f'attachment; filename="conversation-{conversation_id[:20]}.md"'
+    return resp
 
 
 @bp.route('/toggle_view_mode', methods=['POST'])
@@ -277,6 +414,34 @@ def toggle_verbose_mode():
     new_value = 'false' if current == 'true' else 'true'
     db.set_setting('verbose_mode', new_value)
     return jsonify({'success': True, 'verbose_mode': new_value == 'true'})
+
+
+@bp.route('/stats')
+def stats():
+    """Conversation statistics dashboard (#58)."""
+    conn = db.get_db()
+    total_conversations = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
+    total_messages = conn.execute('SELECT COUNT(*) FROM messages').fetchone()[0]
+    avg_messages = (total_messages / total_conversations) if total_conversations else 0
+    # Conversations per week (by update_time as Unix week)
+    by_week = conn.execute('''
+        SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
+               COUNT(*) AS cnt
+        FROM conversations
+        WHERE update_time IS NOT NULL AND update_time != ''
+        GROUP BY week_key
+        ORDER BY week_key DESC
+        LIMIT 20
+    ''').fetchall()
+    dev_mode = db.get_setting('dev_mode', 'false') == 'true'
+    dark_mode = db.get_setting('dark_mode', 'false') == 'true'
+    return render_template('stats.html',
+                         total_conversations=total_conversations,
+                         total_messages=total_messages,
+                         avg_messages=avg_messages,
+                         by_week=by_week,
+                         dev_mode=dev_mode,
+                         dark_mode=dark_mode)
 
 
 @bp.route('/settings')

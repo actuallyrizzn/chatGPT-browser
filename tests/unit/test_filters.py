@@ -66,6 +66,30 @@ class TestDatetimeFilter:
         assert app_module.format_datetime(None) == "—"
 
 
+class TestRelativetimeFilter:
+    """Tests for the relativetime template filter (#52)."""
+
+    def test_just_now(self):
+        from datetime import timezone
+        from datetime import datetime as dt
+        ts = dt.now(tz=timezone.utc).timestamp()
+        result = app_module.relativetime(ts)
+        assert result == "just now"
+
+    def test_minutes_ago(self):
+        from datetime import timezone, timedelta
+        from datetime import datetime as dt
+        ts = (dt.now(tz=timezone.utc) - timedelta(minutes=5)).timestamp()
+        result = app_module.relativetime(ts)
+        assert "min" in result and "ago" in result
+
+    def test_none_returns_placeholder(self):
+        assert app_module.relativetime(None) == "—"
+
+    def test_invalid_returns_placeholder(self):
+        assert app_module.relativetime("invalid") == "—"
+
+
 class TestJsonLoadsFilter:
     """Tests for the json_loads template filter."""
 

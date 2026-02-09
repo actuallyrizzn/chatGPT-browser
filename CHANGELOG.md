@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Search conversations** (fixes #48): Index ?q= filters by title; search box on home; pagination preserves q.
 - **Conversation deletion** (fixes #56): POST /conversation/<id>/delete with confirm; cascade deletes; flash on index.
+- **Visual hierarchy on home** (fixes #52): Message count and relative time ("2 hours ago") on each card; relativetime filter.
+- **Syntax highlighting** (fixes #54): highlight.js on code blocks; Copy button per block; dark theme when body.dark.
+- **Export** (fixes #57): Export conversation as JSON (ChatGPT-compatible) or Markdown from conversation/nice view.
+- **Stats page** (fixes #58): /stats shows total conversations, total messages, avg per conversation, and conversations-by-week table.
+- **Keyboard shortcuts** (fixes #60): / focuses search; Escape/Backspace from conversation back to list; "? Shortcuts" modal in nav.
+- **Pin/favorites** (fixes #61): Star on each card toggles pin; state stored in settings (pinned_conversation_ids).
 
 ### Changed
 - **Full view message pagination** (fixes #29): Dev/full conversation loads 50 messages per page with Previous/Next.

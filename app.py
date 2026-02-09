@@ -58,6 +58,7 @@ from filters import (  # noqa: E402
     fromjson,
     json_loads_filter,
     markdown_filter,
+    relativetime,
     tojson,
 )
 from db import _parse_timestamp  # noqa: E402

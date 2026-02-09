@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Statistics</h1>
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total conversations</h5>
+                    <p class="card-text display-6">{{ total_conversations }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total messages</h5>
+                    <p class="card-text display-6">{{ total_messages }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Avg messages per conversation</h5>
+                    <p class="card-text display-6">{{ "%.1f"|format(avg_messages) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if by_week %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Conversations by week (last 20 weeks)</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">Week key is Unix timestamp / 604800 (seconds per week).</p>
+            <table class="table table-sm">
+                <thead>
+                    <tr><th>Week</th><th>Conversations</th></tr>
+                </thead>
+                <tbody>
+                    {% for row in by_week %}
+                    <tr>
+                        <td>{{ row.week_key }}</td>
+                        <td>{{ row.cnt }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    <p class="mt-4"><a href="{{ url_for('main.index') }}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to conversations</a></p>
+</div>
+{% endblock %}

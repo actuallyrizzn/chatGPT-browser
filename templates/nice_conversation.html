@@ -7,7 +7,11 @@
     </p>
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>{{ conversation.title }}</h1>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+            <div class="btn-group">
+                <a href="{{ url_for('main.export_conversation_json', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download>JSON</a>
+                <a href="{{ url_for('main.export_conversation_markdown', conversation_id=conversation.id) }}" class="btn btn-outline-secondary btn-sm" download>Markdown</a>
+            </div>
             {% if dev_mode %}
             <button id="verboseToggle" class="btn btn-outline-secondary">
                 <i class="bi bi-list-ul"></i> {{ 'Hide' if verbose_mode else 'Show' }} Details
