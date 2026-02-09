@@ -206,24 +206,7 @@ def conversation(conversation_id):
         ORDER BY m.create_time
     ''', (conversation_id,)).fetchall()
     
-    # Convert messages to list of dicts with metadata
-    message_list = []
-    for msg in messages:
-        message_dict = dict(msg)
-        if message_dict['message_type']:  # If metadata exists
-            message_dict['metadata'] = {
-                'message_type': message_dict.pop('message_type'),
-                'model_slug': message_dict.pop('model_slug'),
-                'citations': message_dict.pop('citations'),
-                'content_references': message_dict.pop('content_references'),
-                'finish_details': message_dict.pop('finish_details'),
-                'is_complete': message_dict.pop('is_complete'),
-                'request_id': message_dict.pop('request_id'),
-                'timestamp_': message_dict.pop('timestamp_'),
-                'message_source': message_dict.pop('message_source'),
-                'serialization_metadata': message_dict.pop('serialization_metadata')
-            }
-        message_list.append(message_dict)
+    message_list = [message_row_to_dict(msg) for msg in messages]
     
     dev_mode = get_setting('dev_mode', 'false') == 'true'
     dark_mode = get_setting('dark_mode', 'false') == 'true'
@@ -282,23 +265,7 @@ def nice_conversation(conversation_id):
         )
         SELECT * FROM path
     ''', (endpoint_id,)).fetchall()
-    path = []
-    for message in path_rows:
-        message_dict = dict(message)
-        if message_dict.get('message_type'):
-            message_dict['metadata'] = {
-                'message_type': message_dict.pop('message_type'),
-                'model_slug': message_dict.pop('model_slug'),
-                'citations': message_dict.pop('citations'),
-                'content_references': message_dict.pop('content_references'),
-                'finish_details': message_dict.pop('finish_details'),
-                'is_complete': message_dict.pop('is_complete'),
-                'request_id': message_dict.pop('request_id'),
-                'timestamp_': message_dict.pop('timestamp_'),
-                'message_source': message_dict.pop('message_source'),
-                'serialization_metadata': message_dict.pop('serialization_metadata')
-            }
-        path.append(message_dict)
+    path = [message_row_to_dict(message) for message in path_rows]
 
     # In Nice view, hide system messages and messages with no displayable content
     path = [m for m in path if m.get('role') != 'system' and _message_has_displayable_content(m)]
@@ -363,6 +330,24 @@ def _message_has_displayable_content(message):
         if isinstance(part, dict):
             return True  # dict parts are shown (e.g. as JSON) so consider as content
     return False
+
+def message_row_to_dict(row):
+    """Convert a message row (with optional metadata columns from JOIN) to a dict with nested metadata."""
+    d = dict(row)
+    if d.get('message_type'):
+        d['metadata'] = {
+            'message_type': d.pop('message_type', None),
+            'model_slug': d.pop('model_slug', None),
+            'citations': d.pop('citations', None),
+            'content_references': d.pop('content_references', None),
+            'finish_details': d.pop('finish_details', None),
+            'is_complete': d.pop('is_complete', None),
+            'request_id': d.pop('request_id', None),
+            'timestamp_': d.pop('timestamp_', None),
+            'message_source': d.pop('message_source', None),
+            'serialization_metadata': d.pop('serialization_metadata', None),
+        }
+    return d
 
 IMPORT_BATCH_SIZE = 50  # Commit every N conversations for partial progress and lower memory use
 
