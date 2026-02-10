@@ -3,6 +3,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4">Statistics</h1>
+
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card">
@@ -29,29 +30,85 @@
             </div>
         </div>
     </div>
-    {% if by_week %}
-    <div class="card">
+
+    {% if first_activity_utc or last_activity_utc or total_weeks %}
+    <div class="card mb-4">
         <div class="card-header">
-            <h5 class="mb-0">Conversations by week (last 20 weeks)</h5>
+            <h5 class="mb-0">Activity span</h5>
         </div>
         <div class="card-body">
-            <p class="text-muted small">Week key is Unix timestamp / 604800 (seconds per week).</p>
-            <table class="table table-sm">
-                <thead>
-                    <tr><th>Week</th><th>Conversations</th></tr>
-                </thead>
-                <tbody>
-                    {% for row in by_week %}
-                    <tr>
-                        <td>{{ row.week_key }}</td>
-                        <td>{{ row.cnt }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <dl class="row mb-0">
+                {% if first_activity_utc %}
+                <dt class="col-sm-3 text-muted">First activity</dt>
+                <dd class="col-sm-9">{{ first_activity_utc }} (UTC)</dd>
+                {% endif %}
+                {% if last_activity_utc %}
+                <dt class="col-sm-3 text-muted">Last activity</dt>
+                <dd class="col-sm-9">{{ last_activity_utc }} (UTC)</dd>
+                {% endif %}
+                {% if total_weeks is not none %}
+                <dt class="col-sm-3 text-muted">Weeks with activity</dt>
+                <dd class="col-sm-9">{{ total_weeks }}</dd>
+                {% endif %}
+            </dl>
         </div>
     </div>
     {% endif %}
+
+    {% if by_week %}
+    <div class="card">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h5 class="mb-0">
+                Conversations by week
+                {% if show_all_weeks %}
+                <span class="badge bg-secondary ms-2">Full history</span>
+                {% else %}
+                <span class="text-muted fw-normal small">(last 20 weeks)</span>
+                {% endif %}
+            </h5>
+            <div>
+                {% if show_all_weeks %}
+                <a href="{{ url_for('main.stats') }}" class="btn btn-sm btn-outline-secondary">Show recent only</a>
+                {% elif total_weeks > 20 %}
+                <a href="{{ url_for('main.stats', weeks='all', by_week_page=1, per_page=50) }}" class="btn btn-sm btn-outline-primary">View full history ({{ total_weeks }} weeks)</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">Week starting (UTC).</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr><th>Week starting</th><th>Conversations</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in by_week %}
+                        <tr>
+                            <td>{{ row.week_label }}</td>
+                            <td>{{ row.cnt }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if show_all_weeks and by_week_pages_total > 1 %}
+            <nav aria-label="By-week pagination" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center flex-wrap gap-1">
+                    <li class="page-item {% if by_week_page <= 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.stats', weeks='all', by_week_page=by_week_page - 1, per_page=by_week_per_page) if by_week_page > 1 else '#' }}">Previous</a>
+                    </li>
+                    <li class="page-item disabled"><span class="page-link">Page {{ by_week_page }} of {{ by_week_pages_total }}</span></li>
+                    <li class="page-item {% if by_week_page >= by_week_pages_total %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.stats', weeks='all', by_week_page=by_week_page + 1, per_page=by_week_per_page) if by_week_page < by_week_pages_total else '#' }}">Next</a>
+                    </li>
+                </ul>
+                <p class="text-muted small text-center mb-0">Showing {{ by_week_per_page }} weeks per page. <a href="{{ url_for('main.stats', weeks='all', by_week_page=1, per_page=100) }}">100 per page</a> · <a href="{{ url_for('main.stats', weeks='all', by_week_page=1, per_page=200) }}">200 per page</a></p>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <p class="mt-4"><a href="{{ url_for('main.index') }}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to conversations</a></p>
 </div>
 {% endblock %}

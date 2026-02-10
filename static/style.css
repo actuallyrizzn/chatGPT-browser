@@ -26,6 +26,9 @@ body.dark {
     --card-border: #495057;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
@@ -62,6 +65,39 @@ body {
 
 .navbar {
     background-color: var(--navbar-bg) !important;
+    overflow: visible;
+    min-height: 3.25rem;
+    align-items: center;
+    /* Reserve space so nav content is never hidden behind the viewport scrollbar */
+    padding-right: max(1rem, 17px);
+}
+.navbar .container {
+    overflow: visible;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 3.25rem;
+}
+.navbar .navbar-toggler {
+    align-self: center;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+.navbar .navbar-nav {
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
+    justify-content: flex-end;
+}
+.navbar .nav-item {
+    white-space: nowrap;
+}
+.navbar .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 0.5rem 0.25rem !important;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+    color: #fff !important;
 }
 
 .conversation {

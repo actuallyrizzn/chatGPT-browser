@@ -488,6 +488,18 @@ Sampling real export data shows:
 
 So the only excluded links are from these synthetic nodes to real messages. We do **not** lose any user or assistant content. The app's canonical path walks `parent_id` on `messages` (leaf → root), not the children table, so display and threading still work. The script `scripts/sample_excluded_children.py` can be run against your export to reproduce these counts and sample excluded entries (set `MAX_CONV` and `MAX_SAMPLES` if needed).
 
+**7. Custom instructions and memories**
+
+The app does **not** import or display ChatGPT’s **custom instructions** or **memories** as first-class data. Reason:
+
+- The **official ChatGPT export** (the zip you get from Settings → Data Controls → Export) does not appear to include a dedicated file for custom instructions or memories. The zip typically contains `conversations.json`, `chat.html`, `user.json`, `group_chats.json`, `message_feedback.json`, `shared_conversations.json`, `shopping.json`, etc. None of these are a dedicated “custom instructions” or “memories” export.
+- We only read **`conversations.json`**. So even if OpenAI added a `custom_instructions.json` or `memories.json` in a future export, the current app would not load it unless we added support.
+- If custom instructions or memory-like text are **embedded inside a conversation** (e.g. as a system message or a special message type in `conversations.json`), they would be imported as normal messages (we store all roles, including `system`, and `content.parts`). We don’t treat them as a separate “custom instructions” or “memories” section in the UI.
+
+So: **custom instructions and memories are not exported by the system in a way we consume**, and we don’t have a dedicated place to show them. Any such content that appears inside a conversation’s messages will still be in the DB and visible in the thread.
+
+**Limitation.** Custom instructions and memories are important user data and are worth exporting. The app would support importing and displaying them if OpenAI included them in the data export (e.g. a `custom_instructions.json` or `memories.json` in the zip). Until then, users who want this data preserved can request that OpenAI add it to the export format (e.g. via in-product feedback or support).
+
 ## Settings Management
 
 ### Available Settings

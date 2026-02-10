@@ -4,8 +4,11 @@
 """Main routes: index, conversations, import, settings, toggles."""
 
 import json
+import os
+import tempfile
+from datetime import datetime, timezone
 
-from flask import Blueprint, flash, make_response, redirect, render_template, request, session, url_for
+from flask import after_this_request, Blueprint, flash, make_response, redirect, render_template, request, send_file, session, url_for
 
 import db
 from csrf import validate_csrf
@@ -280,6 +283,33 @@ def delete_conversation(conversation_id):
     return redirect(url_for('main.index'))
 
 
+def _get_canonical_path_rows(conn, conversation_id):
+    """Return message rows for the canonical path (root first). Empty if no canonical endpoint."""
+    canonical_endpoint = conn.execute('''
+        SELECT m.id
+        FROM messages m
+        LEFT JOIN messages child ON m.id = child.parent_id
+        WHERE m.conversation_id = ? AND child.id IS NULL
+        ORDER BY m.create_time DESC
+        LIMIT 1
+    ''', (conversation_id,)).fetchone()
+    if not canonical_endpoint:
+        return []
+    endpoint_id = canonical_endpoint['id']
+    path_rows = conn.execute('''
+        WITH RECURSIVE path AS (
+            SELECT m.id, m.conversation_id, m.role, m.content, m.create_time, m.update_time
+            FROM messages m WHERE m.id = ?
+            UNION ALL
+            SELECT m.id, m.conversation_id, m.role, m.content, m.create_time, m.update_time
+            FROM messages m INNER JOIN path p ON m.id = p.parent_id
+        )
+        SELECT * FROM path
+    ''', (endpoint_id,)).fetchall()
+    # path is leaf first; reverse so root is first (position 1)
+    return list(reversed(path_rows))
+
+
 def _build_export_mapping(conn, conversation_id):
     """Build ChatGPT-style mapping for one conversation (id -> { message, parent, children })."""
     messages = conn.execute('''
@@ -392,6 +422,78 @@ def export_conversation_markdown(conversation_id):
     return resp
 
 
+@bp.route('/export/canonical-db')
+def export_canonical_db():
+    """Generate a SQLite DB containing only canonical (linear) threads for use in other tools."""
+    conn = db.get_db()
+    conversations = conn.execute(
+        'SELECT id, create_time, update_time, title FROM conversations ORDER BY update_time'
+    ).fetchall()
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+    tmp.close()
+    out_path = tmp.name
+    try:
+        export_conn = __import__('sqlite3').connect(out_path)
+        export_conn.executescript('''
+            CREATE TABLE conversations (
+                id TEXT PRIMARY KEY,
+                create_time TEXT,
+                update_time TEXT,
+                title TEXT
+            );
+            CREATE TABLE messages (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                role TEXT,
+                content TEXT,
+                create_time TEXT,
+                update_time TEXT,
+                position INTEGER NOT NULL,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+            );
+            CREATE INDEX idx_canonical_messages_conversation ON messages(conversation_id);
+        ''')
+        for conv in conversations:
+            cid = conv['id']
+            export_conn.execute(
+                'INSERT INTO conversations (id, create_time, update_time, title) VALUES (?, ?, ?, ?)',
+                (cid, conv['create_time'] or '', conv['update_time'] or '', conv['title'] or '')
+            )
+            path_rows = _get_canonical_path_rows(conn, cid)
+            for pos, row in enumerate(path_rows, start=1):
+                export_conn.execute('''
+                    INSERT INTO messages (id, conversation_id, role, content, create_time, update_time, position)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (row['id'], row['conversation_id'], row['role'] or '', row['content'] or '',
+                      row['create_time'], row['update_time'], pos))
+        export_conn.commit()
+        export_conn.close()
+
+        filename = f'canonical-export-{datetime.now(timezone.utc).strftime("%Y-%m-%d")}.db'
+
+        @after_this_request
+        def _remove_canonical_export(response):
+            try:
+                os.unlink(out_path)
+            except OSError:
+                pass
+            return response
+
+        return send_file(
+            out_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/x-sqlite3',
+        )
+    except Exception:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
+        raise
+
+
 @bp.route('/toggle_view_mode', methods=['POST'])
 def toggle_view_mode():
     from flask import jsonify
@@ -435,30 +537,88 @@ def toggle_verbose_mode():
     return jsonify({'success': True, 'verbose_mode': new_value == 'true'})
 
 
+def _week_rows_to_labels(rows):
+    """Convert (week_key, cnt) rows to list of dicts with week_label (YYYY-MM-DD) and cnt."""
+    out = []
+    for row in rows:
+        week_start = datetime.fromtimestamp(row['week_key'] * 604800, tz=timezone.utc)
+        out.append({'week_label': week_start.strftime('%Y-%m-%d'), 'cnt': row['cnt']})
+    return out
+
+
 @bp.route('/stats')
 def stats():
-    """Conversation statistics dashboard (#58)."""
+    """Conversation statistics dashboard (#58). Expanded: activity span, full by-week history."""
     conn = db.get_db()
     total_conversations = conn.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
     total_messages = conn.execute('SELECT COUNT(*) FROM messages').fetchone()[0]
     avg_messages = (total_messages / total_conversations) if total_conversations else 0
-    # Conversations per week (by update_time as Unix week)
-    by_week = conn.execute('''
-        SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
-               COUNT(*) AS cnt
+
+    # Activity span (first/last conversation update_time)
+    span = conn.execute('''
+        SELECT MIN(CAST(update_time AS REAL)) AS first_ts,
+               MAX(CAST(update_time AS REAL)) AS last_ts
         FROM conversations
         WHERE update_time IS NOT NULL AND update_time != ''
-        GROUP BY week_key
-        ORDER BY week_key DESC
-        LIMIT 20
-    ''').fetchall()
+    ''').fetchone()
+    first_activity_utc = datetime.fromtimestamp(span['first_ts'], tz=timezone.utc).strftime('%Y-%m-%d') if span and span['first_ts'] else None
+    last_activity_utc = datetime.fromtimestamp(span['last_ts'], tz=timezone.utc).strftime('%Y-%m-%d') if span and span['last_ts'] else None
+
+    # Total distinct weeks with activity (for "full history" link)
+    total_weeks_row = conn.execute('''
+        SELECT COUNT(DISTINCT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER)) AS n
+        FROM conversations
+        WHERE update_time IS NOT NULL AND update_time != ''
+    ''').fetchone()
+    total_weeks = total_weeks_row['n'] if total_weeks_row else 0
+
+    # Conversations per week: either last 20 (preview) or full paginated
+    show_all_weeks = request.args.get('weeks') == 'all'
+    by_week_page = max(int(request.args.get('by_week_page', 1)), 1)
+    by_week_per_page = min(max(int(request.args.get('per_page', 50)), 10), 200)
+
+    if show_all_weeks:
+        offset = (by_week_page - 1) * by_week_per_page
+        by_week_rows = conn.execute('''
+            SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
+                   COUNT(*) AS cnt
+            FROM conversations
+            WHERE update_time IS NOT NULL AND update_time != ''
+            GROUP BY week_key
+            ORDER BY week_key DESC
+            LIMIT ? OFFSET ?
+        ''', (by_week_per_page, offset)).fetchall()
+        by_week = _week_rows_to_labels(by_week_rows)
+        by_week_pages_total = (total_weeks + by_week_per_page - 1) // by_week_per_page if total_weeks else 1
+    else:
+        by_week_rows = conn.execute('''
+            SELECT CAST(CAST(update_time AS REAL) / 604800 AS INTEGER) AS week_key,
+                   COUNT(*) AS cnt
+            FROM conversations
+            WHERE update_time IS NOT NULL AND update_time != ''
+            GROUP BY week_key
+            ORDER BY week_key DESC
+            LIMIT 20
+        ''').fetchall()
+        by_week = _week_rows_to_labels(by_week_rows)
+        by_week_page = 1
+        by_week_per_page = 20
+        by_week_pages_total = 1
+
     dev_mode = db.get_setting('dev_mode', 'false') == 'true'
     dark_mode = db.get_setting('dark_mode', 'false') == 'true'
     return render_template('stats.html',
                          total_conversations=total_conversations,
                          total_messages=total_messages,
                          avg_messages=avg_messages,
+                         first_activity_utc=first_activity_utc,
+                         last_activity_utc=last_activity_utc,
+                         total_weeks=total_weeks,
                          by_week=by_week,
+                         show_all_weeks=show_all_weeks,
+                         by_week_page=by_week_page,
+                         by_week_per_page=by_week_per_page,
+                         by_week_pages_total=by_week_pages_total,
                          dev_mode=dev_mode,
                          dark_mode=dark_mode)
 

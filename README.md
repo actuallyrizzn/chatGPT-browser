@@ -2,6 +2,16 @@
 
 A powerful Flask web application for browsing and analyzing ChatGPT conversation history. This tool allows you to import your ChatGPT conversation exports and view them in either a clean, focused mode or a detailed developer mode with full metadata.
 
+## What is the “canonical” conversation path?
+
+ChatGPT exports **full conversation trees**: when you branch a thread (e.g. “regenerate” or start a new branch), the export contains every message in every branch. ChatGPT Browser stores **all of that** in the database—we do not throw away branches. The **canonical path** is how we decide which single thread to show when you open a conversation in “Nice” mode.
+
+- **Stored in the DB:** Every message and every branch (parent/child links). So the database is the full tree, not a single thread.
+- **Canonical path (computed when you read):** For each conversation we find the **canonical endpoint**—the message in that conversation that has **no children** (the leaf of the “main” branch you were last on). We then walk **back** from that leaf via `parent_id` to the root. That ordered path is the “canonical” thread.
+- **Nice mode** shows only that path (and hides system messages / empty nodes for a clean read). **Dev mode** can show all messages in the conversation. You can also **export a canonical-only database** from Settings for use in other tools—a single linear thread per conversation, no branches.
+
+So: **one source of truth in the DB (the full tree), one interpreted view (the canonical path) when you read or export.**
+
 ## 🚀 Features
 
 - **Dual View Modes**:
@@ -16,10 +26,10 @@ A powerful Flask web application for browsing and analyzing ChatGPT conversation
   - Timestamps and conversation structure visualization
   - Support for complex conversation trees and branching
 
-- **Import Functionality**:
-  - Import conversations from ChatGPT JSON export files
-  - Maintains full conversation history and metadata
-  - Handles conversation threading and parent-child relationships
+- **Import & export**:
+  - Import conversations from ChatGPT JSON export files (full tree stored)
+  - Export a **canonical-only SQLite database** from Settings: one linear thread per conversation for use in other tools or non-ChatGPT products
+  - Maintains full conversation history and metadata; handles threading and parent-child relationships
 
 - **Customization**:
   - Customizable user and assistant display names
@@ -148,6 +158,7 @@ pip install chatgpt-browser
 - **View Mode**: Set default viewing mode (Nice/Dev)
 - **Verbose Mode**: Show additional technical details in Dev mode
 - **Dark Mode**: Enable/disable dark theme
+- **Export data**: **Download canonical-only database** — generates a SQLite file with one linear thread per conversation (no branches), for use in analytics or other products
 
 ## 🔧 Configuration
 
