@@ -19,11 +19,11 @@
         </div>
     </div>
 
-    <form method="GET" action="{{ url_for('main.index') }}" class="mb-4">
+    <form method="GET" action="{{ url_for('main.index') }}" class="mb-4" role="search">
         <div class="input-group">
-            <input type="search" name="q" id="search-input" class="form-control" placeholder="Search by title..." value="{{ q or '' }}" aria-label="Search conversations">
+            <input type="search" name="q" id="search-input" class="form-control" placeholder="Search by title..." value="{{ q or '' }}" aria-label="Search conversations by title">
             <input type="hidden" name="per_page" value="{{ per_page }}">
-            <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-search"></i> Search</button>
+            <button type="submit" class="btn btn-outline-secondary" aria-label="Search"><i class="bi bi-search" aria-hidden="true"></i> Search</button>
         </div>
     </form>
 
@@ -35,13 +35,13 @@
                     <div class="d-flex align-items-center gap-2">
                         <form method="POST" action="{{ url_for('main.toggle_pin', conversation_id=conversation.id) }}" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn btn-link btn-sm p-0 text-warning border-0" aria-label="{{ 'Unpin' if conversation.id in pinned_ids else 'Pin' }} conversation">{% if conversation.id in pinned_ids %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}</button>
+                            <button type="submit" class="btn btn-link btn-sm p-0 text-warning border-0" aria-label="{{ 'Unpin' if conversation.id in pinned_ids else 'Pin' }} conversation: {{ conversation.title }}">{% if conversation.id in pinned_ids %}<i class="bi bi-star-fill" aria-hidden="true"></i>{% else %}<i class="bi bi-star" aria-hidden="true"></i>{% endif %}</button>
                         </form>
-                        <h5 class="card-title mb-0">
+                        <h2 class="card-title h5 mb-0">
                             <a href="{{ url_for('main.conversation', conversation_id=conversation.id) }}" class="text-decoration-none">
                                 {{ conversation.title }}
                             </a>
-                        </h5>
+                        </h2>
                     </div>
                     <p class="card-text mb-0">
                         <small class="text-muted">
@@ -70,11 +70,11 @@
     <nav aria-label="Conversation pagination" class="mt-4">
         <ul class="pagination justify-content-center">
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="{% if page > 1 %}{{ url_for('main.index', page=page-1, per_page=per_page, q=q) }}{% else %}#{% endif %}">Previous</a>
+                <a class="page-link" href="{% if page > 1 %}{{ url_for('main.index', page=page-1, per_page=per_page, q=q) }}{% else %}#{% endif %}" aria-label="Previous page">Previous</a>
             </li>
-            <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
+            <li class="page-item disabled"><span class="page-link" aria-current="page">Page {{ page }} of {{ total_pages }}</span></li>
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{% if page < total_pages %}{{ url_for('main.index', page=page+1, per_page=per_page, q=q) }}{% else %}#{% endif %}">Next</a>
+                <a class="page-link" href="{% if page < total_pages %}{{ url_for('main.index', page=page+1, per_page=per_page, q=q) }}{% else %}#{% endif %}" aria-label="Next page">Next</a>
             </li>
         </ul>
     </nav>
