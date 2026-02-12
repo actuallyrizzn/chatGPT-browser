@@ -5,7 +5,7 @@
 
 import os
 
-from flask import Flask, request
+from flask import Flask, has_request_context, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 import db
@@ -42,7 +42,13 @@ app.register_blueprint(main_bp)
 @app.context_processor
 def inject_csrf_token():
     """Inject csrf_token into all templates for forms and AJAX (#4, #10)."""
-    return {'csrf_token': get_csrf_token()}
+    in_request = has_request_context()
+    return {
+        "csrf_token": get_csrf_token() if in_request else "",
+        # Avoid templates directly depending on `request` (LocalProxy) when rendering
+        # outside a request context (e.g. scripts, offline rendering).
+        "active_endpoint": request.endpoint if in_request else None,
+    }
 
 
 @app.errorhandler(RequestEntityTooLarge)

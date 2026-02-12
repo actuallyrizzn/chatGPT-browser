@@ -32,12 +32,12 @@
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="view_mode" {% if not dev_mode %}checked{% endif %} aria-label="Toggle between Nice Mode and Developer Mode">
+                            <input class="form-check-input" type="checkbox" id="view_mode" {% if not dev_mode %}checked{% endif %} aria-describedby="view-mode-help">
                             <label class="form-check-label" for="view_mode">
                                 <span class="nice-label">Nice Mode</span>
                                 <span class="dev-label d-none">Developer Mode</span>
                             </label>
-                            <small class="form-text text-muted d-block mt-1">
+                            <small id="view-mode-help" class="form-text text-muted d-block mt-1">
                                 <span class="nice-desc">Clean conversation view showing only the canonical path.</span>
                                 <span class="dev-desc d-none">Full conversation view with all messages and technical details.</span>
                             </small>
@@ -45,9 +45,9 @@
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="verbose_mode" {% if verbose_mode and dev_mode %}checked{% endif %} {% if not dev_mode %}disabled{% endif %} aria-label="Toggle Verbose Mode">
+                            <input class="form-check-input" type="checkbox" id="verbose_mode" {% if verbose_mode and dev_mode %}checked{% endif %} {% if not dev_mode %}disabled{% endif %} aria-describedby="verbose-mode-help">
                             <label class="form-check-label" for="verbose_mode">Verbose Mode</label>
-                            <small class="form-text text-muted d-block mt-1">Show all messages & metadata in developer view.</small>
+                            <small id="verbose-mode-help" class="form-text text-muted d-block mt-1">Show all messages & metadata in developer view.</small>
                         </div>
                     </div>
                     <div class="d-grid">
