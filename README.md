@@ -87,6 +87,15 @@ Before installing ChatGPT Browser, ensure you have:
 pip install chatgpt-browser
 ```
 
+### Development notes
+
+- **Always use a virtual environment** for this project; do not install its dependencies globally.
+- **Large ingest**: For big `conversations.json` files, run the ingest with low CPU priority so the machine doesn’t lock. Use the wrapper:
+  ```bash
+  ./run_ingest_nice.sh chatgpt_export/conversations.json --init-db
+  ```
+  (Uses `nice -n 19` and the project venv.)
+
 ## 🚀 Quick Start
 
 1. **Start the application**:
